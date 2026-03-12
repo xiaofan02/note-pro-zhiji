@@ -16,7 +16,7 @@ const CtaSection = () => {
           加入 10 万+ 用户，体验更聪明的笔记方式。免费开始，无需信用卡。
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <button className="px-8 py-3.5 text-base font-semibold bg-foreground text-primary-foreground rounded-full hover:opacity-90 transition-opacity shadow-lg flex items-center gap-2">
+          <button onClick={() => navigate("/auth")} className="px-8 py-3.5 text-base font-semibold bg-foreground text-primary-foreground rounded-full hover:opacity-90 transition-opacity shadow-lg flex items-center gap-2">
             免费开始使用 <ArrowRight className="w-4 h-4" />
           </button>
           <button className="px-8 py-3.5 text-base font-semibold border border-border text-foreground rounded-full hover:bg-muted transition-colors">
