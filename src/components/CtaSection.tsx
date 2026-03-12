@@ -2,6 +2,7 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const CtaSection = () => {
+  const navigate = useNavigate();
   return (
     <section className="bg-background">
       <div className="max-w-4xl mx-auto px-6 py-20 md:py-28 text-center space-y-8">
