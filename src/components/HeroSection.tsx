@@ -1,5 +1,6 @@
 import heroArt from "@/assets/hero-art.png";
 import { ArrowDown, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const HeroSection = () => {
   return (
