@@ -220,7 +220,7 @@ const Workspace = () => {
         key={note.id}
         draggable
         onDragStart={(e) => handleDragStart(e, note.id)}
-        onClick={() => { setActiveNoteId(note.id); if (note.folder_id) setActiveFolderId(note.folder_id); }}
+        onClick={() => { setActiveNoteId(note.id); setActiveFolderId(note.folder_id); }}
         className={cn(
           "group flex items-start gap-2.5 p-3 rounded-lg cursor-grab transition-all active:cursor-grabbing",
           isActive
