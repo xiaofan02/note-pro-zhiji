@@ -49,11 +49,12 @@ const NoteList = ({ notes, activeNoteId, onSelect, onCreate, onDelete }: NoteLis
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
-        {notes.length === 0 && (
+        {filteredNotes.length === 0 && searchQuery && (
           <p className="text-sm text-muted-foreground text-center py-8">
-            还没有笔记，点击 + 创建第一条
+            未找到匹配的笔记
           </p>
         )}
+        {filteredNotes.length === 0 && !searchQuery && (
         {notes.map((note) => (
           <div
             key={note.id}
