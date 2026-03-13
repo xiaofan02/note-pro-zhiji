@@ -225,6 +225,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
           <span className="text-xs text-muted-foreground shrink-0">
             {new Date(note.updated_at).toLocaleString("zh-CN")}
           </span>
+          {/* TagManager - commented out for now
           <TagManager
             tags={tags}
             noteTags={noteTags}
@@ -232,6 +233,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
             onAddTag={(tagId) => onAddTag(note.id, tagId)}
             onRemoveTag={(tagId) => onRemoveTag(note.id, tagId)}
           />
+          */}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {voiceSupported && (
