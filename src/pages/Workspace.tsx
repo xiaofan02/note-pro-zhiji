@@ -15,6 +15,7 @@ import NoteEditor from "@/components/workspace/NoteEditor";
 import AiChatPanel from "@/components/workspace/AiChatPanel";
 import TagFilter from "@/components/workspace/TagFilter";
 import SettingsDialog from "@/components/workspace/SettingsDialog";
+import { useDocumentImport } from "@/hooks/useDocumentImport";
 import { cn } from "@/lib/utils";
 
 const Workspace = () => {
