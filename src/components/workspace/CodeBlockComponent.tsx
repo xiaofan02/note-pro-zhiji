@@ -59,7 +59,7 @@ const CodeBlockComponent = ({ node, updateAttributes, extension }: NodeViewProps
             onChange={(e) => updateAttributes({ language: e.target.value })}
             className="bg-transparent outline-none cursor-pointer text-xs text-muted-foreground"
           >
-            <option value="">自动检测</option>
+            <option value="">{detectedLang ? `自动检测: ${detectedLang}` : "自动检测"}</option>
             {["javascript", "typescript", "python", "java", "c", "cpp", "csharp", "go", "rust", "ruby", "php", "swift", "kotlin", "html", "css", "sql", "bash", "json", "yaml", "xml", "markdown"].map((lang) => (
               <option key={lang} value={lang}>{lang}</option>
             ))}
