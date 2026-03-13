@@ -268,6 +268,7 @@ const Workspace = () => {
           <p className="text-xs text-muted-foreground truncate mt-0.5 leading-relaxed">
             {note.content?.replace(/<[^>]*>/g, "").slice(0, 60) || "空笔记"}
           </p>
+          {/* Tags on notes - commented out for now
           {noteTags.length > 0 && (
             <div className="flex gap-1 mt-1.5 flex-wrap">
               {noteTags.map((tag) => (
@@ -281,6 +282,7 @@ const Workspace = () => {
               ))}
             </div>
           )}
+          */}
           <p className="text-[11px] text-muted-foreground/50 mt-1">
             {new Date(note.updated_at).toLocaleDateString("zh-CN")}
           </p>
