@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Sparkles, FileText, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotes } from "@/hooks/useNotes";
+import { useTags } from "@/hooks/useTags";
 import NoteList from "@/components/workspace/NoteList";
 import NoteEditor from "@/components/workspace/NoteEditor";
 
@@ -10,6 +11,7 @@ const Workspace = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const { notes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote } = useNotes();
+  const { tags, noteTagsMap, createTag, addTagToNote, removeTagFromNote, getTagsForNote } = useTags();
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
@@ -30,7 +32,6 @@ const Workspace = () => {
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      {/* Top bar */}
       <header className="h-14 border-b border-border bg-background flex items-center justify-between px-4 shrink-0">
         <Link to="/" className="flex items-center gap-2">
           <div className="w-7 h-7 bg-foreground rounded-lg flex items-center justify-center">
@@ -52,7 +53,6 @@ const Workspace = () => {
         </div>
       </header>
 
-      {/* Main area */}
       <div className="flex-1 flex overflow-hidden">
         <NoteList
           notes={notes}
@@ -60,10 +60,21 @@ const Workspace = () => {
           onSelect={setActiveNoteId}
           onCreate={createNote}
           onDelete={deleteNote}
+          tags={tags}
+          noteTagsMap={noteTagsMap}
+          getTagsForNote={getTagsForNote}
         />
         <main className="flex-1 flex">
           {activeNote ? (
-            <NoteEditor note={activeNote} onUpdate={updateNote} />
+            <NoteEditor
+              note={activeNote}
+              onUpdate={updateNote}
+              tags={tags}
+              noteTags={getTagsForNote(activeNote.id)}
+              onCreateTag={createTag}
+              onAddTag={addTagToNote}
+              onRemoveTag={removeTagFromNote}
+            />
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-4">
               <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">

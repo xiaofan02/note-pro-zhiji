@@ -1,7 +1,9 @@
 import { useState, useMemo } from "react";
 import { Plus, FileText, Trash2, Search } from "lucide-react";
 import { Note } from "@/hooks/useNotes";
+import { Tag } from "@/hooks/useTags";
 import { cn } from "@/lib/utils";
+import TagFilter from "./TagFilter";
 
 interface NoteListProps {
   notes: Note[];
@@ -9,20 +11,28 @@ interface NoteListProps {
   onSelect: (id: string) => void;
   onCreate: () => void;
   onDelete: (id: string) => void;
+  tags: Tag[];
+  noteTagsMap: Record<string, string[]>;
+  getTagsForNote: (noteId: string) => Tag[];
 }
 
-const NoteList = ({ notes, activeNoteId, onSelect, onCreate, onDelete }: NoteListProps) => {
+const NoteList = ({ notes, activeNoteId, onSelect, onCreate, onDelete, tags, noteTagsMap, getTagsForNote }: NoteListProps) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
 
   const filteredNotes = useMemo(() => {
-    if (!searchQuery.trim()) return notes;
-    const q = searchQuery.toLowerCase();
-    return notes.filter(
-      (n) =>
-        n.title.toLowerCase().includes(q) ||
-        n.content.toLowerCase().includes(q)
-    );
-  }, [notes, searchQuery]);
+    let result = notes;
+    if (selectedTagId) {
+      result = result.filter((n) => (noteTagsMap[n.id] || []).includes(selectedTagId));
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (n) => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [notes, searchQuery, selectedTagId, noteTagsMap]);
 
   return (
     <aside className="w-72 border-r border-border bg-sidebar-background flex flex-col h-full">
@@ -48,52 +58,69 @@ const NoteList = ({ notes, activeNoteId, onSelect, onCreate, onDelete }: NoteLis
           />
         </div>
       </div>
+      <TagFilter tags={tags} selectedTagId={selectedTagId} onSelect={setSelectedTagId} />
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
-        {filteredNotes.length === 0 && searchQuery && (
+        {filteredNotes.length === 0 && (searchQuery || selectedTagId) && (
           <p className="text-sm text-muted-foreground text-center py-8">
             未找到匹配的笔记
           </p>
         )}
-        {filteredNotes.length === 0 && !searchQuery && (
+        {filteredNotes.length === 0 && !searchQuery && !selectedTagId && (
           <p className="text-sm text-muted-foreground text-center py-8">
             还没有笔记，点击 + 创建第一条
           </p>
         )}
-        {filteredNotes.map((note) => (
-          <div
-            key={note.id}
-            onClick={() => onSelect(note.id)}
-            className={cn(
-              "group flex items-start gap-2 p-3 rounded-lg cursor-pointer transition-colors",
-              activeNoteId === note.id
-                ? "bg-accent text-accent-foreground"
-                : "hover:bg-muted text-muted-foreground"
-            )}
-          >
-            <FileText className="w-4 h-4 mt-0.5 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">
-                {note.title || "无标题笔记"}
-              </p>
-              <p className="text-xs text-muted-foreground truncate mt-0.5">
-                {note.content?.slice(0, 50) || "空笔记"}
-              </p>
-              <p className="text-xs text-muted-foreground/60 mt-1">
-                {new Date(note.updated_at).toLocaleDateString("zh-CN")}
-              </p>
-            </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(note.id);
-              }}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
-              title="删除"
+        {filteredNotes.map((note) => {
+          const noteTags = getTagsForNote(note.id);
+          return (
+            <div
+              key={note.id}
+              onClick={() => onSelect(note.id)}
+              className={cn(
+                "group flex items-start gap-2 p-3 rounded-lg cursor-pointer transition-colors",
+                activeNoteId === note.id
+                  ? "bg-accent text-accent-foreground"
+                  : "hover:bg-muted text-muted-foreground"
+              )}
             >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ))}
+              <FileText className="w-4 h-4 mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">
+                  {note.title || "无标题笔记"}
+                </p>
+                <p className="text-xs text-muted-foreground truncate mt-0.5">
+                  {note.content?.slice(0, 50) || "空笔记"}
+                </p>
+                {noteTags.length > 0 && (
+                  <div className="flex gap-1 mt-1 flex-wrap">
+                    {noteTags.map((tag) => (
+                      <span
+                        key={tag.id}
+                        className="px-1.5 py-0 rounded-full text-[10px] text-white"
+                        style={{ backgroundColor: tag.color }}
+                      >
+                        {tag.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground/60 mt-1">
+                  {new Date(note.updated_at).toLocaleDateString("zh-CN")}
+                </p>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(note.id);
+                }}
+                className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+                title="删除"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          );
+        })}
       </div>
     </aside>
   );

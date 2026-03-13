@@ -1,13 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Note } from "@/hooks/useNotes";
+import { Tag } from "@/hooks/useTags";
 import { Save } from "lucide-react";
+import TagManager from "./TagManager";
 
 interface NoteEditorProps {
   note: Note;
   onUpdate: (id: string, updates: { title?: string; content?: string }) => Promise<void>;
+  tags: Tag[];
+  noteTags: Tag[];
+  onCreateTag: (name: string) => Promise<any>;
+  onAddTag: (noteId: string, tagId: string) => void;
+  onRemoveTag: (noteId: string, tagId: string) => void;
 }
 
-const NoteEditor = ({ note, onUpdate }: NoteEditorProps) => {
+const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onRemoveTag }: NoteEditorProps) => {
   const [title, setTitle] = useState(note.title);
   const [content, setContent] = useState(note.content);
   const [saving, setSaving] = useState(false);
@@ -43,10 +50,19 @@ const NoteEditor = ({ note, onUpdate }: NoteEditorProps) => {
   return (
     <div className="flex-1 flex flex-col h-full">
       <div className="flex items-center justify-between px-6 py-3 border-b border-border">
-        <span className="text-xs text-muted-foreground">
-          {new Date(note.updated_at).toLocaleString("zh-CN")}
-        </span>
-        <span className="text-xs text-muted-foreground flex items-center gap-1">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <span className="text-xs text-muted-foreground shrink-0">
+            {new Date(note.updated_at).toLocaleString("zh-CN")}
+          </span>
+          <TagManager
+            tags={tags}
+            noteTags={noteTags}
+            onCreateTag={onCreateTag}
+            onAddTag={(tagId) => onAddTag(note.id, tagId)}
+            onRemoveTag={(tagId) => onRemoveTag(note.id, tagId)}
+          />
+        </div>
+        <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
           {saving ? (
             <>保存中...</>
           ) : (
