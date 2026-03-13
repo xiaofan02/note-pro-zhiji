@@ -31,6 +31,9 @@ const Workspace = () => {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
+  const [dragOverUnfoldered, setDragOverUnfoldered] = useState(false);
 
   const handlePageFontSizeChange = (size: number) => {
     setPageFontSize(size);
@@ -101,6 +104,40 @@ const Workspace = () => {
     if (ok) await refreshNotes();
   };
 
+  // Drag & drop handlers
+  const handleDragStart = (e: React.DragEvent, noteId: string) => {
+    e.dataTransfer.setData("text/plain", noteId);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDropOnFolder = async (e: React.DragEvent, folderId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverFolderId(null);
+    const noteId = e.dataTransfer.getData("text/plain");
+    if (noteId) {
+      await handleMoveNote(noteId, folderId);
+      setExpandedFolders((prev) => new Set(prev).add(folderId));
+    }
+  };
+
+  const handleDropOnUnfoldered = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverUnfoldered(false);
+    const noteId = e.dataTransfer.getData("text/plain");
+    if (noteId) {
+      await handleMoveNote(noteId, null);
+    }
+  };
+
+  const handleNewNote = () => {
+    createNote(activeFolderId || undefined);
+    if (activeFolderId) {
+      setExpandedFolders((prev) => new Set(prev).add(activeFolderId));
+    }
+  };
+
   const filteredNotes = useMemo(() => {
     let result = notes;
     if (selectedTagId) {
@@ -136,9 +173,11 @@ const Workspace = () => {
     return (
       <div
         key={note.id}
+        draggable
+        onDragStart={(e) => handleDragStart(e, note.id)}
         onClick={() => setActiveNoteId(note.id)}
         className={cn(
-          "group flex items-start gap-2.5 p-3 rounded-lg cursor-pointer transition-all",
+          "group flex items-start gap-2.5 p-3 rounded-lg cursor-grab transition-all active:cursor-grabbing",
           isActive
             ? "bg-accent text-accent-foreground shadow-sm"
             : "hover:bg-muted/60 text-foreground"
@@ -259,11 +298,11 @@ const Workspace = () => {
           {/* Action buttons */}
           <div className="px-3 pb-2 flex gap-2">
             <button
-              onClick={() => createNote()}
+              onClick={handleNewNote}
               className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity shadow-sm"
             >
               <Plus className="w-4 h-4" />
-              新建笔记
+              新建笔记{activeFolderId ? ` (${folders.find(f => f.id === activeFolderId)?.name})` : ""}
             </button>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -300,8 +339,18 @@ const Workspace = () => {
                   const isExpanded = expandedFolders.has(folder.id);
                   return (
                     <div key={folder.id} className="mb-1">
-                      {/* Folder header */}
-                      <div className="group flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-muted/60 cursor-pointer transition-colors">
+                      {/* Folder header - drop target */}
+                      <div
+                        onDragOver={(e) => { e.preventDefault(); setDragOverFolderId(folder.id); }}
+                        onDragLeave={() => setDragOverFolderId(null)}
+                        onDrop={(e) => handleDropOnFolder(e, folder.id)}
+                        onClick={() => setActiveFolderId(activeFolderId === folder.id ? null : folder.id)}
+                        className={cn(
+                          "group flex items-center gap-1 px-2 py-1.5 rounded-lg cursor-pointer transition-colors",
+                          dragOverFolderId === folder.id ? "bg-primary/15 ring-2 ring-primary/30" : "hover:bg-muted/60",
+                          activeFolderId === folder.id && "bg-accent"
+                        )}
+                      >
                         <button onClick={() => toggleFolder(folder.id)} className="flex items-center gap-1.5 flex-1 min-w-0">
                           {isExpanded
                             ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
@@ -374,10 +423,23 @@ const Workspace = () => {
                   );
                 })}
 
-                {/* Unfoldered notes */}
-                {unfolderedNotes.length > 0 && folders.length > 0 && (
-                  <div className="mt-2 pt-2 border-t border-border/50">
-                    <p className="text-[11px] text-muted-foreground/50 px-3 pb-1 font-medium">未分类</p>
+                {/* Unfoldered notes - drop target */}
+                {(unfolderedNotes.length > 0 || folders.length > 0) && (
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setDragOverUnfoldered(true); }}
+                    onDragLeave={() => setDragOverUnfoldered(false)}
+                    onDrop={handleDropOnUnfoldered}
+                    className={cn(
+                      "mt-2 pt-2 border-t border-border/50 rounded-lg transition-colors",
+                      dragOverUnfoldered && "bg-primary/10 ring-2 ring-primary/30"
+                    )}
+                  >
+                    <p
+                      className={cn("text-[11px] text-muted-foreground/50 px-3 pb-1 font-medium cursor-pointer hover:text-muted-foreground", activeFolderId === null && folders.length > 0 && "text-primary")}
+                      onClick={() => setActiveFolderId(null)}
+                    >
+                      未分类
+                    </p>
                   </div>
                 )}
                 {unfolderedNotes.map(renderNoteItem)}
