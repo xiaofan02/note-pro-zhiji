@@ -298,11 +298,11 @@ const Workspace = () => {
           {/* Action buttons */}
           <div className="px-3 pb-2 flex gap-2">
             <button
-              onClick={() => createNote()}
+              onClick={handleNewNote}
               className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity shadow-sm"
             >
               <Plus className="w-4 h-4" />
-              新建笔记
+              新建笔记{activeFolderId ? ` (${folders.find(f => f.id === activeFolderId)?.name})` : ""}
             </button>
             <Tooltip>
               <TooltipTrigger asChild>
