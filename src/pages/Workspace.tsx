@@ -104,6 +104,40 @@ const Workspace = () => {
     if (ok) await refreshNotes();
   };
 
+  // Drag & drop handlers
+  const handleDragStart = (e: React.DragEvent, noteId: string) => {
+    e.dataTransfer.setData("text/plain", noteId);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDropOnFolder = async (e: React.DragEvent, folderId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverFolderId(null);
+    const noteId = e.dataTransfer.getData("text/plain");
+    if (noteId) {
+      await handleMoveNote(noteId, folderId);
+      setExpandedFolders((prev) => new Set(prev).add(folderId));
+    }
+  };
+
+  const handleDropOnUnfoldered = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverUnfoldered(false);
+    const noteId = e.dataTransfer.getData("text/plain");
+    if (noteId) {
+      await handleMoveNote(noteId, null);
+    }
+  };
+
+  const handleNewNote = () => {
+    createNote(activeFolderId || undefined);
+    if (activeFolderId) {
+      setExpandedFolders((prev) => new Set(prev).add(activeFolderId));
+    }
+  };
+
   const filteredNotes = useMemo(() => {
     let result = notes;
     if (selectedTagId) {
