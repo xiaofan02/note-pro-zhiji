@@ -23,7 +23,7 @@ export const useNotes = () => {
     if (!user) return;
     const { data, error } = await supabase
       .from("notes")
-      .select("id, title, content, created_at, updated_at")
+      .select("id, title, content, folder_id, created_at, updated_at")
       .order("updated_at", { ascending: false });
 
     if (error) {
