@@ -138,11 +138,16 @@
 }
 
 .tiptap-editor .tiptap pre {
-  @apply bg-muted rounded-lg p-4 my-2 overflow-x-auto;
+  @apply bg-muted rounded-lg p-4 my-2 overflow-x-auto text-xs;
 }
 
 .tiptap-editor .tiptap pre code {
-  @apply bg-transparent p-0;
+  @apply bg-transparent p-0 text-xs;
+}
+
+/* Code block with NodeView - override rounded top when header exists */
+.tiptap-editor .tiptap [data-node-view-wrapper] pre {
+  @apply rounded-t-none mt-0;
 }
 
 .tiptap-editor .tiptap a {
