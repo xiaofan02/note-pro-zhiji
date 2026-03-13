@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, MessageSquare, X, Save, Bot, User, Plus, History, ArrowLeft, Trash2 } from "lucide-react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { Send, Loader2, MessageSquare, X, Save, Bot, User, Plus, History, ArrowLeft, Trash2, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
