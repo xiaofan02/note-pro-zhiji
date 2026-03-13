@@ -578,27 +578,45 @@ const Workspace = () => {
 
         {/* Right - editor area */}
         <main className="flex-1 flex bg-section-alt">
-          {activeNote ? (
-            <NoteEditor
-              note={activeNote}
-              onUpdate={updateNote}
-              tags={tags}
-              noteTags={getTagsForNote(activeNote.id)}
-              onCreateTag={createTag}
-              onAddTag={addTagToNote}
-              onRemoveTag={removeTagFromNote}
-              pageFontSize={pageFontSize}
+          <div className="flex-1 flex">
+            {activeNote ? (
+              <NoteEditor
+                note={activeNote}
+                onUpdate={updateNote}
+                tags={tags}
+                noteTags={getTagsForNote(activeNote.id)}
+                onCreateTag={createTag}
+                onAddTag={addTagToNote}
+                onRemoveTag={removeTagFromNote}
+                pageFontSize={pageFontSize}
+              />
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-5">
+                <div className="w-20 h-20 rounded-2xl bg-accent flex items-center justify-center">
+                  <FileText className="w-8 h-8 text-primary/60" />
+                </div>
+                <div className="text-center space-y-1.5">
+                  <p className="font-semibold text-foreground text-lg">选择或创建一条笔记</p>
+                  <p className="text-sm">从左侧列表选择笔记，或点击「新建笔记」开始记录</p>
+                </div>
+              </div>
+            )}
+          </div>
+          {showAiChat && (
+            <AiChatPanel
+              onSaveNote={async (title, content) => {
+                if (!user) return;
+                const { data, error } = await supabase
+                  .from("notes")
+                  .insert({ user_id: user.id, title, content })
+                  .select("id, title, content, folder_id, created_at, updated_at")
+                  .single();
+                if (error) throw error;
+                refreshNotes();
+                if (data) setActiveNoteId(data.id);
+              }}
+              onClose={() => setShowAiChat(false)}
             />
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-5">
-              <div className="w-20 h-20 rounded-2xl bg-accent flex items-center justify-center">
-                <FileText className="w-8 h-8 text-primary/60" />
-              </div>
-              <div className="text-center space-y-1.5">
-                <p className="font-semibold text-foreground text-lg">选择或创建一条笔记</p>
-                <p className="text-sm">从左侧列表选择笔记，或点击「新建笔记」开始记录</p>
-              </div>
-            </div>
           )}
         </main>
       </TooltipProvider>
