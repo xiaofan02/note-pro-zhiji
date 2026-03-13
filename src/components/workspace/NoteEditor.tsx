@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Note } from "@/hooks/useNotes";
 import { Tag } from "@/hooks/useTags";
-import { Save, Sparkles, FileText, Loader2 } from "lucide-react";
+import { Save, Sparkles, FileText, Loader2, Mic, MicOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import TagManager from "./TagManager";
 
 interface NoteEditorProps {
