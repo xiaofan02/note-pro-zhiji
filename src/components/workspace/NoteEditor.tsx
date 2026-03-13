@@ -214,6 +214,35 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
               {isListening ? "停止录音" : "语音速记"}
             </button>
           )}
+          <div className="flex items-center rounded-md border border-border overflow-hidden">
+            <button
+              onClick={() => setPreviewMode("edit")}
+              className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium transition-colors ${
+                previewMode === "edit" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground"
+              }`}
+              title="编辑模式"
+            >
+              <Edit3 className="w-3 h-3" /> 编辑
+            </button>
+            <button
+              onClick={() => setPreviewMode("split")}
+              className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium transition-colors border-x border-border ${
+                previewMode === "split" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground"
+              }`}
+              title="分栏模式"
+            >
+              分栏
+            </button>
+            <button
+              onClick={() => setPreviewMode("preview")}
+              className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium transition-colors ${
+                previewMode === "preview" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground"
+              }`}
+              title="预览模式"
+            >
+              <Eye className="w-3 h-3" /> 预览
+            </button>
+          </div>
           <button
             onClick={() => handleAiAction("organize")}
             disabled={!!aiLoading}
