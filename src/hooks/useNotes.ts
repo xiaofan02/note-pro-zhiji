@@ -42,8 +42,8 @@ export const useNotes = () => {
     if (!user) return;
     const { data, error } = await supabase
       .from("notes")
-      .insert({ user_id: user.id, title: "无标题笔记", content: "" })
-      .select("id, title, content, created_at, updated_at")
+      .insert({ user_id: user.id, title: "无标题笔记", content: "", folder_id: folderId || null })
+      .select("id, title, content, folder_id, created_at, updated_at")
       .single();
 
     if (error) {
