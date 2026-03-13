@@ -7,6 +7,7 @@ export interface Note {
   id: string;
   title: string;
   content: string;
+  folder_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -22,7 +23,7 @@ export const useNotes = () => {
     if (!user) return;
     const { data, error } = await supabase
       .from("notes")
-      .select("id, title, content, created_at, updated_at")
+      .select("id, title, content, folder_id, created_at, updated_at")
       .order("updated_at", { ascending: false });
 
     if (error) {
@@ -37,12 +38,12 @@ export const useNotes = () => {
     fetchNotes();
   }, [fetchNotes]);
 
-  const createNote = async () => {
+  const createNote = async (folderId?: string) => {
     if (!user) return;
     const { data, error } = await supabase
       .from("notes")
-      .insert({ user_id: user.id, title: "无标题笔记", content: "" })
-      .select("id, title, content, created_at, updated_at")
+      .insert({ user_id: user.id, title: "无标题笔记", content: "", folder_id: folderId || null })
+      .select("id, title, content, folder_id, created_at, updated_at")
       .single();
 
     if (error) {
@@ -78,5 +79,5 @@ export const useNotes = () => {
 
   const activeNote = notes.find((n) => n.id === activeNoteId) || null;
 
-  return { notes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote };
+  return { notes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, refreshNotes: fetchNotes };
 };
