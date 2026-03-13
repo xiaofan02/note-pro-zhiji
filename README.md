@@ -1,73 +1,64 @@
-# Welcome to your Lovable project
+# 智记 AI — 智能笔记助手
 
-## Project info
+一款基于 AI 的智能笔记应用，帮助你高效记录、整理和检索知识。
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## ✨ 核心功能
 
-## How can I edit this code?
+- **富文本编辑器** — 支持标题、列表、代码块、图片、任务清单等格式
+- **AI 智能整理** — 一键整理笔记结构，让内容更清晰有条理
+- **AI 摘要** — 快速生成笔记摘要，提炼核心信息
+- **AI 对话** — 基于笔记内容与 AI 对话，深入理解知识
+- **语音速记** — 语音转文字，解放双手快速记录
+- **文件夹管理** — 分层文件夹组织笔记，支持拖拽排序
+- **标签系统** — 多标签分类，灵活管理笔记
+- **文档导入** — 支持 .txt、.md、.docx、.html、.csv、.json 等多种格式
+- **图片插入** — 支持粘贴和上传图片到笔记中
+- **搜索** — 快速搜索所有笔记内容
+- **深色模式** — 支持明暗主题切换
 
-There are several ways of editing your application.
+## 🚀 快速开始
 
-**Use Lovable**
+### 在线使用
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+访问部署地址，注册账号即可开始使用。
 
-Changes made via Lovable will be committed automatically to this repo.
+### 本地开发
 
-**Use your preferred IDE**
+```bash
+# 克隆仓库
+git clone <仓库地址>
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+# 进入项目目录
+cd <项目名>
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+# 安装依赖
+npm install
 
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# 启动开发服务器
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+浏览器打开 `http://localhost:5173` 即可访问。
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 📖 使用指南
 
-**Use GitHub Codespaces**
+1. **注册/登录** — 使用邮箱注册账号并登录
+2. **创建笔记** — 点击侧边栏的 "+" 按钮新建笔记
+3. **编辑笔记** — 使用工具栏进行富文本编辑，支持 Markdown 快捷输入
+4. **AI 功能** — 点击顶部的"智能整理"或"AI 总结"按钮使用 AI 能力
+5. **AI 对话** — 点击右侧 AI 面板，与 AI 就笔记内容进行对话
+6. **语音输入** — 点击"语音速记"按钮，开始语音转文字输入
+7. **文件夹** — 在侧边栏创建文件夹，拖拽笔记进行分类
+8. **导入文档** — 点击导入按钮，支持多种文档格式
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 🛠 技术栈
 
-## What technologies are used for this project?
+- **前端** — React + TypeScript + Vite
+- **UI** — Tailwind CSS + shadcn/ui
+- **编辑器** — Tiptap 富文本编辑器
+- **后端** — Lovable Cloud（数据库、认证、存储、边缘函数）
+- **AI** — 集成多种 AI 模型用于笔记整理和对话
 
-This project is built with:
+## 📄 许可证
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+MIT License
