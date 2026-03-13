@@ -34,7 +34,7 @@ const Workspace = () => {
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const [dragOverUnfoldered, setDragOverUnfoldered] = useState(false);
-  const dragCounterRef = React.useRef<Record<string, number>>({});
+  const dragCounterRef = useRef<Record<string, number>>({});
 
   const handlePageFontSizeChange = (size: number) => {
     setPageFontSize(size);
