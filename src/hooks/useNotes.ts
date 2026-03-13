@@ -38,7 +38,7 @@ export const useNotes = () => {
     fetchNotes();
   }, [fetchNotes]);
 
-  const createNote = async () => {
+  const createNote = async (folderId?: string) => {
     if (!user) return;
     const { data, error } = await supabase
       .from("notes")
