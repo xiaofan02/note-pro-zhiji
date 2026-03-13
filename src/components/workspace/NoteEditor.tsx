@@ -28,6 +28,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   const [summary, setSummary] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [previewMode, setPreviewMode] = useState<"edit" | "preview" | "split">("edit");
+  const saveTimer = useRef<ReturnType<typeof setTimeout>>();
   const voiceTextRef = useRef("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
