@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Send, Loader2, MessageSquare, X, Save, Bot, User, Minus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
@@ -21,14 +21,7 @@ const AiChatPanel = ({ onSaveNote, onClose }: AiChatPanelProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const [position, setPosition] = useState(() => {
-    const saved = localStorage.getItem("aiChatBubbleY");
-    return saved ? parseInt(saved, 10) : 50; // percent from top
-  });
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartY = useRef(0);
-  const dragStartPos = useRef(0);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -37,44 +30,6 @@ const AiChatPanel = ({ onSaveNote, onClose }: AiChatPanelProps) => {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
-
-  // Drag handlers for the bubble
-  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
-    dragStartY.current = clientY;
-    dragStartPos.current = position;
-  }, [position]);
-
-  useEffect(() => {
-    if (!isDragging) return;
-
-    const handleMove = (e: MouseEvent | TouchEvent) => {
-      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
-      const deltaY = clientY - dragStartY.current;
-      const deltaPercent = (deltaY / window.innerHeight) * 100;
-      const newPos = Math.max(5, Math.min(85, dragStartPos.current + deltaPercent));
-      setPosition(newPos);
-    };
-
-    const handleEnd = () => {
-      setIsDragging(false);
-      localStorage.setItem("aiChatBubbleY", String(position));
-    };
-
-    window.addEventListener("mousemove", handleMove);
-    window.addEventListener("mouseup", handleEnd);
-    window.addEventListener("touchmove", handleMove);
-    window.addEventListener("touchend", handleEnd);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("mouseup", handleEnd);
-      window.removeEventListener("touchmove", handleMove);
-      window.removeEventListener("touchend", handleEnd);
-    };
-  }, [isDragging, position]);
 
   const extractNoteFromResponse = (content: string): { cleanContent: string; noteTitle?: string; noteContent?: string } => {
     const noteMatch = content.match(/<!--SAVE_NOTE-->(.*?)\|\|\|(.*?)<!--\/SAVE_NOTE-->/s);
@@ -162,7 +117,6 @@ const AiChatPanel = ({ onSaveNote, onClose }: AiChatPanelProps) => {
         }
       }
 
-      // Check for auto-save note marker
       const { cleanContent, noteTitle, noteContent } = extractNoteFromResponse(assistantContent);
       if (noteTitle && noteContent) {
         setMessages((prev) =>
@@ -190,55 +144,31 @@ const AiChatPanel = ({ onSaveNote, onClose }: AiChatPanelProps) => {
     await handleSaveExtractedNote(title, `<p>${content}</p>`);
   };
 
-  // Floating bubble (collapsed state)
-  if (!isOpen) {
+  // Collapsed state - thin strip
+  if (isCollapsed) {
     return (
-      <div
-        className="fixed right-4 z-50 flex flex-col items-center gap-1.5"
-        style={{ top: `${position}%`, transform: "translateY(-50%)" }}
-      >
-        <div
-          onMouseDown={handleDragStart}
-          onTouchStart={handleDragStart}
-          className={cn(
-            "w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg cursor-grab active:cursor-grabbing hover:scale-110 transition-transform",
-            isDragging && "scale-110 opacity-80"
-          )}
-          onClick={() => { if (!isDragging) setIsOpen(true); }}
+      <div className="w-10 border-l border-border bg-card flex flex-col items-center py-3 shrink-0">
+        <button
+          onClick={() => setIsCollapsed(false)}
+          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          title="展开 AI 助手"
         >
-          <MessageSquare className="w-5 h-5" />
-        </div>
-        <span className="text-[10px] text-muted-foreground font-medium whitespace-nowrap select-none pointer-events-none">AI助理</span>
+          <Bot className="w-4 h-4" />
+        </button>
       </div>
     );
   }
 
-  // Expanded chat panel
   return (
-    <div
-      className="fixed right-4 z-50 flex flex-col bg-card border border-border rounded-2xl shadow-2xl overflow-hidden"
-      style={{
-        top: `${Math.min(position, 60)}%`,
-        transform: "translateY(-50%)",
-        width: 380,
-        height: "min(520px, 70vh)",
-      }}
-    >
-      {/* Header - draggable */}
-      <div
-        className={cn(
-          "flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/30 cursor-grab active:cursor-grabbing shrink-0",
-          isDragging && "opacity-80"
-        )}
-        onMouseDown={handleDragStart}
-        onTouchStart={handleDragStart}
-      >
+    <div className="w-[340px] border-l border-border bg-card flex flex-col h-full shrink-0">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/30 shrink-0">
         <div className="flex items-center gap-2">
           <Bot className="w-4 h-4 text-primary" />
           <span className="font-semibold text-sm text-foreground">AI 助手</span>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={() => setIsOpen(false)} className="p-1 rounded hover:bg-muted transition-colors" title="最小化">
+          <button onClick={() => setIsCollapsed(true)} className="p-1 rounded hover:bg-muted transition-colors" title="最小化">
             <Minus className="w-3.5 h-3.5 text-muted-foreground" />
           </button>
           <button onClick={onClose} className="p-1 rounded hover:bg-muted transition-colors" title="关闭">
