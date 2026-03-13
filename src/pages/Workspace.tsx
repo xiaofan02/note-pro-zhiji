@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import { useNavigate, Link } from "react-router-dom";
 import {
   Sparkles, FileText, LogOut, Plus, Search, Trash2, Moon, Sun, User,
-  FolderOpen, Folder, ChevronRight, ChevronDown, MoreHorizontal, FolderPlus, Edit2
+  FolderOpen, Folder, ChevronRight, ChevronDown, MoreHorizontal, FolderPlus, Edit2, MessageSquare
 } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
