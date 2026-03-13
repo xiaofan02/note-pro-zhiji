@@ -79,5 +79,5 @@ export const useNotes = () => {
 
   const activeNote = notes.find((n) => n.id === activeNoteId) || null;
 
-  return { notes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote };
+  return { notes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, refreshNotes: fetchNotes };
 };
