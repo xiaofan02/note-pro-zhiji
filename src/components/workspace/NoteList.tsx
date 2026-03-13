@@ -55,7 +55,11 @@ const NoteList = ({ notes, activeNoteId, onSelect, onCreate, onDelete }: NoteLis
           </p>
         )}
         {filteredNotes.length === 0 && !searchQuery && (
-        {notes.map((note) => (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            还没有笔记，点击 + 创建第一条
+          </p>
+        )}
+        {filteredNotes.map((note) => (
           <div
             key={note.id}
             onClick={() => onSelect(note.id)}
