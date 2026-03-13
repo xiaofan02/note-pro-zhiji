@@ -82,10 +82,6 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
       Placeholder.configure({ placeholder: "开始写点什么吧..." }),
     ],
     content: note.content || "",
-    onUpdate: ({ editor: ed }) => {
-      const html = ed.getHTML();
-      debouncedSave(title, html);
-    },
   });
 
   useEffect(() => {
