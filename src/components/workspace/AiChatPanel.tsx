@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, MessageSquare, X, Save, Bot, User, Minus } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Send, Loader2, MessageSquare, X, Save, Bot, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
@@ -12,16 +12,22 @@ interface Message {
 
 interface AiChatPanelProps {
   onSaveNote: (title: string, content: string, folderId?: string) => Promise<void>;
-  onClose: () => void;
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
 
-const AiChatPanel = ({ onSaveNote, onClose }: AiChatPanelProps) => {
+const AiChatPanel = ({ onSaveNote }: AiChatPanelProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [bubbleY, setBubbleY] = useState(() => {
+    const saved = localStorage.getItem("aiChatBubbleY");
+    return saved ? parseInt(saved, 10) : 50;
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartY = useRef(0);
+  const dragStartPos = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -31,7 +37,39 @@ const AiChatPanel = ({ onSaveNote, onClose }: AiChatPanelProps) => {
     }
   }, [messages]);
 
-  const extractNoteFromResponse = (content: string): { cleanContent: string; noteTitle?: string; noteContent?: string } => {
+  // Bubble drag handlers
+  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+    dragStartY.current = clientY;
+    dragStartPos.current = bubbleY;
+  }, [bubbleY]);
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+      const deltaPercent = ((clientY - dragStartY.current) / window.innerHeight) * 100;
+      setBubbleY(Math.max(5, Math.min(85, dragStartPos.current + deltaPercent)));
+    };
+    const handleEnd = () => {
+      setIsDragging(false);
+      setBubbleY((v) => { localStorage.setItem("aiChatBubbleY", String(v)); return v; });
+    };
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleEnd);
+    window.addEventListener("touchmove", handleMove);
+    window.addEventListener("touchend", handleEnd);
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleEnd);
+      window.removeEventListener("touchmove", handleMove);
+      window.removeEventListener("touchend", handleEnd);
+    };
+  }, [isDragging]);
+
+  const extractNoteFromResponse = (content: string) => {
     const noteMatch = content.match(/<!--SAVE_NOTE-->(.*?)\|\|\|(.*?)<!--\/SAVE_NOTE-->/s);
     if (noteMatch) {
       const cleanContent = content.replace(/<!--SAVE_NOTE-->.*?<!--\/SAVE_NOTE-->/s, "").trim();
@@ -52,13 +90,11 @@ const AiChatPanel = ({ onSaveNote, onClose }: AiChatPanelProps) => {
   const sendMessage = async () => {
     const text = input.trim();
     if (!text || isLoading) return;
-
     const userMsg: Message = { role: "user", content: text };
     const allMessages = [...messages, userMsg];
     setMessages(allMessages);
     setInput("");
     setIsLoading(true);
-
     let assistantContent = "";
 
     try {
@@ -70,33 +106,27 @@ const AiChatPanel = ({ onSaveNote, onClose }: AiChatPanelProps) => {
         },
         body: JSON.stringify({ messages: allMessages }),
       });
-
       if (!resp.ok) {
         const errData = await resp.json().catch(() => ({}));
         throw new Error(errData.error || `请求失败 (${resp.status})`);
       }
-
       if (!resp.body) throw new Error("No response body");
 
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
-
         let newlineIdx: number;
         while ((newlineIdx = buffer.indexOf("\n")) !== -1) {
           let line = buffer.slice(0, newlineIdx);
           buffer = buffer.slice(newlineIdx + 1);
           if (line.endsWith("\r")) line = line.slice(0, -1);
           if (!line.startsWith("data: ")) continue;
-
           const jsonStr = line.slice(6).trim();
           if (jsonStr === "[DONE]") break;
-
           try {
             const parsed = JSON.parse(jsonStr);
             const delta = parsed.choices?.[0]?.delta?.content;
@@ -133,10 +163,7 @@ const AiChatPanel = ({ onSaveNote, onClose }: AiChatPanelProps) => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
   const handleManualSave = async (content: string) => {
@@ -144,21 +171,30 @@ const AiChatPanel = ({ onSaveNote, onClose }: AiChatPanelProps) => {
     await handleSaveExtractedNote(title, `<p>${content}</p>`);
   };
 
-  // Collapsed state - thin strip
-  if (isCollapsed) {
+  // --- Collapsed: floating bubble ---
+  if (!isOpen) {
     return (
-      <div className="w-10 border-l border-border bg-card flex flex-col items-center py-3 shrink-0">
-        <button
-          onClick={() => setIsCollapsed(false)}
-          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          title="展开 AI 助手"
+      <div
+        className="fixed right-5 z-50 flex flex-col items-center gap-1"
+        style={{ top: `${bubbleY}%`, transform: "translateY(-50%)" }}
+      >
+        <div
+          onMouseDown={handleDragStart}
+          onTouchStart={handleDragStart}
+          onClick={() => { if (!isDragging) setIsOpen(true); }}
+          className={cn(
+            "w-11 h-11 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg cursor-grab active:cursor-grabbing hover:scale-110 transition-transform",
+            isDragging && "scale-110 opacity-80"
+          )}
         >
-          <Bot className="w-4 h-4" />
-        </button>
+          <MessageSquare className="w-5 h-5" />
+        </div>
+        <span className="text-[10px] text-muted-foreground font-medium select-none pointer-events-none">AI助理</span>
       </div>
     );
   }
 
+  // --- Expanded: fixed right sidebar ---
   return (
     <div className="w-[340px] border-l border-border bg-card flex flex-col h-full shrink-0">
       {/* Header */}
@@ -167,14 +203,9 @@ const AiChatPanel = ({ onSaveNote, onClose }: AiChatPanelProps) => {
           <Bot className="w-4 h-4 text-primary" />
           <span className="font-semibold text-sm text-foreground">AI 助手</span>
         </div>
-        <div className="flex items-center gap-1">
-          <button onClick={() => setIsCollapsed(true)} className="p-1 rounded hover:bg-muted transition-colors" title="最小化">
-            <Minus className="w-3.5 h-3.5 text-muted-foreground" />
-          </button>
-          <button onClick={onClose} className="p-1 rounded hover:bg-muted transition-colors" title="关闭">
-            <X className="w-3.5 h-3.5 text-muted-foreground" />
-          </button>
-        </div>
+        <button onClick={() => setIsOpen(false)} className="p-1 rounded hover:bg-muted transition-colors" title="收起">
+          <X className="w-3.5 h-3.5 text-muted-foreground" />
+        </button>
       </div>
 
       {/* Messages */}
@@ -198,14 +229,10 @@ const AiChatPanel = ({ onSaveNote, onClose }: AiChatPanelProps) => {
                 <Bot className="w-3 h-3 text-primary" />
               </div>
             )}
-            <div
-              className={cn(
-                "max-w-[82%] rounded-xl px-3 py-2 text-sm leading-relaxed",
-                msg.role === "user"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-foreground"
-              )}
-            >
+            <div className={cn(
+              "max-w-[82%] rounded-xl px-3 py-2 text-sm leading-relaxed",
+              msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+            )}>
               {msg.role === "assistant" ? (
                 <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1">
                   <ReactMarkdown rehypePlugins={[rehypeRaw]}>{msg.content}</ReactMarkdown>
