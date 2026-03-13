@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   Sparkles, FileText, LogOut, Plus, Search, Trash2, Moon, Sun, User,
@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useAuth } from "@/hooks/useAuth";
 import { useNotes } from "@/hooks/useNotes";
 import { useTags } from "@/hooks/useTags";
-import { useFolders } from "@/hooks/useFolders";
+import { useFolders, Folder as FolderType } from "@/hooks/useFolders";
 import NoteEditor from "@/components/workspace/NoteEditor";
 import TagFilter from "@/components/workspace/TagFilter";
 import SettingsDialog from "@/components/workspace/SettingsDialog";
@@ -20,7 +20,7 @@ const Workspace = () => {
   const navigate = useNavigate();
   const { notes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, refreshNotes } = useNotes();
   const { tags, noteTagsMap, createTag, addTagToNote, removeTagFromNote, getTagsForNote } = useTags();
-  const { folders, createFolder, renameFolder, deleteFolder, moveNoteToFolder } = useFolders();
+  const { folders, createFolder, renameFolder, deleteFolder, moveNoteToFolder, getChildFolders } = useFolders();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
@@ -74,10 +74,15 @@ const Workspace = () => {
     });
   };
 
-  const handleCreateFolder = async () => {
-    const folder = await createFolder();
+  const handleCreateFolder = async (parentId?: string) => {
+    const folder = await createFolder(undefined, parentId);
     if (folder) {
-      setExpandedFolders((prev) => new Set(prev).add(folder.id));
+      setExpandedFolders((prev) => {
+        const next = new Set(prev);
+        next.add(folder.id);
+        if (parentId) next.add(parentId);
+        return next;
+      });
       setRenamingFolderId(folder.id);
       setRenameValue(folder.name);
     }
@@ -249,7 +254,6 @@ const Workspace = () => {
           </p>
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
-          {/* Move to folder dropdown */}
           {folders.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -291,6 +295,116 @@ const Workspace = () => {
       </div>
     );
   };
+
+  // Recursive folder renderer
+  const renderFolder = (folder: FolderType, depth: number = 0) => {
+    const folderNotes = notesByFolder[folder.id] || [];
+    const childFolders = getChildFolders(folder.id);
+    const isExpanded = expandedFolders.has(folder.id);
+    const totalNotes = folderNotes.length;
+
+    return (
+      <div
+        key={folder.id}
+        onDragOver={(e) => { e.preventDefault(); }}
+        onDragEnter={(e) => handleFolderDragEnter(e, folder.id)}
+        onDragLeave={(e) => handleFolderDragLeave(e, folder.id)}
+        onDrop={(e) => handleDropOnFolder(e, folder.id)}
+        className={cn(
+          "mb-0.5 rounded-lg transition-colors",
+          dragOverFolderId === folder.id && "bg-primary/10 ring-2 ring-primary/30"
+        )}
+      >
+        {/* Folder header */}
+        <div
+          onClick={() => setActiveFolderId(activeFolderId === folder.id ? null : folder.id)}
+          className={cn(
+            "group flex items-center gap-1 px-2 py-1.5 rounded-lg cursor-pointer transition-colors",
+            dragOverFolderId !== folder.id && "hover:bg-muted/60",
+            activeFolderId === folder.id && dragOverFolderId !== folder.id && "bg-accent"
+          )}
+          style={{ paddingLeft: `${8 + depth * 12}px` }}
+        >
+          <button onClick={(e) => { e.stopPropagation(); toggleFolder(folder.id); }} className="flex items-center gap-1.5 flex-1 min-w-0">
+            {isExpanded
+              ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            }
+            <FolderOpen className={cn("w-4 h-4 shrink-0", isExpanded ? "text-primary" : "text-muted-foreground")} />
+            {renamingFolderId === folder.id ? (
+              <input
+                autoFocus
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onBlur={() => handleRenameSubmit(folder.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleRenameSubmit(folder.id);
+                  if (e.key === "Escape") setRenamingFolderId(null);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="flex-1 min-w-0 text-sm bg-transparent border-b border-primary outline-none text-foreground"
+              />
+            ) : (
+              <span className="text-sm font-medium text-foreground truncate">{folder.name}</span>
+            )}
+            <span className="text-[11px] text-muted-foreground/50 ml-1">{totalNotes}</span>
+          </button>
+          <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleCreateNoteInFolder(folder.id); }}
+                  className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">在此目录新建笔记</TooltipContent>
+            </Tooltip>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  onClick={(e) => e.stopPropagation()}
+                  className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                >
+                  <MoreHorizontal className="w-3 h-3" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[120px]">
+                <DropdownMenuItem onClick={() => handleCreateFolder(folder.id)}>
+                  <FolderPlus className="w-3.5 h-3.5 mr-2" /> 新建子目录
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setRenamingFolderId(folder.id); setRenameValue(folder.name); }}>
+                  <Edit2 className="w-3.5 h-3.5 mr-2" /> 重命名
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleDeleteFolder(folder.id)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-2" /> 删除目录
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+        {/* Folder contents */}
+        {isExpanded && (
+          <div className="ml-3 mt-0.5 space-y-0.5 min-h-[32px]">
+            {/* Child folders */}
+            {childFolders.map((child) => renderFolder(child, depth + 1))}
+            {/* Notes in this folder */}
+            {folderNotes.map(renderNoteItem)}
+            {folderNotes.length === 0 && childFolders.length === 0 && (
+              <p className="text-xs text-muted-foreground/50 py-2 pl-4">目录为空</p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Get root-level folders (no parent)
+  const rootFolders = useMemo(() => getChildFolders(null), [getChildFolders]);
 
   if (authLoading) {
     return (
@@ -344,7 +458,7 @@ const Workspace = () => {
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
-                  onClick={handleCreateFolder}
+                  onClick={() => handleCreateFolder()}
                   className="px-3 py-2 rounded-lg bg-accent text-accent-foreground text-sm font-medium hover:bg-accent/80 transition-colors"
                 >
                   <FolderPlus className="w-4 h-4" />
@@ -370,102 +484,8 @@ const Workspace = () => {
 
             {!loading && !isSearching && (
               <>
-                {/* Folders */}
-                {folders.map((folder) => {
-                  const folderNotes = notesByFolder[folder.id] || [];
-                  const isExpanded = expandedFolders.has(folder.id);
-                  return (
-                    <div
-                      key={folder.id}
-                      onDragOver={(e) => { e.preventDefault(); }}
-                      onDragEnter={(e) => handleFolderDragEnter(e, folder.id)}
-                      onDragLeave={(e) => handleFolderDragLeave(e, folder.id)}
-                      onDrop={(e) => handleDropOnFolder(e, folder.id)}
-                      className={cn(
-                        "mb-1 rounded-lg transition-colors",
-                        dragOverFolderId === folder.id && "bg-primary/10 ring-2 ring-primary/30"
-                      )}
-                    >
-                      {/* Folder header */}
-                      <div
-                        onClick={() => setActiveFolderId(activeFolderId === folder.id ? null : folder.id)}
-                        className={cn(
-                          "group flex items-center gap-1 px-2 py-1.5 rounded-lg cursor-pointer transition-colors",
-                          dragOverFolderId !== folder.id && "hover:bg-muted/60",
-                          activeFolderId === folder.id && dragOverFolderId !== folder.id && "bg-accent"
-                        )}
-                      >
-                        <button onClick={() => toggleFolder(folder.id)} className="flex items-center gap-1.5 flex-1 min-w-0">
-                          {isExpanded
-                            ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                            : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                          }
-                          <FolderOpen className={cn("w-4 h-4 shrink-0", isExpanded ? "text-primary" : "text-muted-foreground")} />
-                          {renamingFolderId === folder.id ? (
-                            <input
-                              autoFocus
-                              value={renameValue}
-                              onChange={(e) => setRenameValue(e.target.value)}
-                              onBlur={() => handleRenameSubmit(folder.id)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") handleRenameSubmit(folder.id);
-                                if (e.key === "Escape") setRenamingFolderId(null);
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                              className="flex-1 min-w-0 text-sm bg-transparent border-b border-primary outline-none text-foreground"
-                            />
-                          ) : (
-                            <span className="text-sm font-medium text-foreground truncate">{folder.name}</span>
-                          )}
-                          <span className="text-[11px] text-muted-foreground/50 ml-1">{folderNotes.length}</span>
-                        </button>
-                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleCreateNoteInFolder(folder.id); }}
-                                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
-                              >
-                                <Plus className="w-3 h-3" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="text-xs">在此目录新建笔记</TooltipContent>
-                          </Tooltip>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <button
-                                onClick={(e) => e.stopPropagation()}
-                                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
-                              >
-                                <MoreHorizontal className="w-3 h-3" />
-                              </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="min-w-[120px]">
-                              <DropdownMenuItem onClick={() => { setRenamingFolderId(folder.id); setRenameValue(folder.name); }}>
-                                <Edit2 className="w-3.5 h-3.5 mr-2" /> 重命名
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleDeleteFolder(folder.id)}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 mr-2" /> 删除目录
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
-                      {/* Folder notes */}
-                      {isExpanded && (
-                        <div className="ml-4 mt-0.5 space-y-0.5 min-h-[32px]">
-                          {folderNotes.length === 0 && (
-                            <p className="text-xs text-muted-foreground/50 py-2 pl-4">目录为空</p>
-                          )}
-                          {folderNotes.map(renderNoteItem)}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                {/* Folders - only root level, children rendered recursively */}
+                {rootFolders.map((folder) => renderFolder(folder))}
 
                 {/* Unfoldered notes - drop target */}
                 {(unfolderedNotes.length > 0 || folders.length > 0) && (
