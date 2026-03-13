@@ -1,23 +1,38 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Note } from "@/hooks/useNotes";
 import { Tag } from "@/hooks/useTags";
-import { Save, Sparkles, FileText, Loader2, Mic, MicOff } from "lucide-react";
+import { Save, Sparkles, FileText, Loader2, Mic, Settings2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useAuth } from "@/hooks/useAuth";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TiptapLink from "@tiptap/extension-link";
 import TiptapImage from "@tiptap/extension-image";
 import Highlight from "@tiptap/extension-highlight";
 import { TextStyle } from "@tiptap/extension-text-style";
+import { FontSize } from "@tiptap/extension-text-style";
 import Color from "@tiptap/extension-color";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import Placeholder from "@tiptap/extension-placeholder";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import { common, createLowlight } from "lowlight";
 import TagManager from "./TagManager";
 import EditorToolbar from "./EditorToolbar";
+import CodeBlockComponent from "./CodeBlockComponent";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Slider } from "@/components/ui/slider";
+
+const lowlight = createLowlight(common);
+
+const PAGE_FONT_SIZES = [
+  { label: "小", value: 13 },
+  { label: "默认", value: 15 },
+  { label: "大", value: 17 },
+  { label: "特大", value: 20 },
+];
 
 interface NoteEditorProps {
   note: Note;
@@ -36,9 +51,18 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   const [aiLoading, setAiLoading] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [pageFontSize, setPageFontSize] = useState(() => {
+    const saved = localStorage.getItem("noteFontSize");
+    return saved ? parseInt(saved, 10) : 15;
+  });
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  const handlePageFontSizeChange = (val: number[]) => {
+    setPageFontSize(val[0]);
+    localStorage.setItem("noteFontSize", String(val[0]));
+  };
 
   const debouncedSave = useCallback(
     (newTitle: string, newContent: string) => {
@@ -56,11 +80,18 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
+        codeBlock: false,
       }),
+      CodeBlockLowlight.extend({
+        addNodeView() {
+          return ReactNodeViewRenderer(CodeBlockComponent);
+        },
+      }).configure({ lowlight }),
       TiptapLink.configure({ openOnClick: false }),
       TiptapImage.configure({ inline: false }),
       Highlight.configure({ multicolor: true }),
       TextStyle,
+      FontSize,
       Color,
       TaskList,
       TaskItem.configure({ nested: true }),
@@ -73,7 +104,6 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
     },
   });
 
-  // Sync note changes (switching notes)
   useEffect(() => {
     setTitle(note.title);
     setSummary(null);
@@ -82,11 +112,9 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
     }
   }, [note.id]);
 
-  // Keep title in sync for save
   const titleRef = useRef(title);
   useEffect(() => { titleRef.current = title; }, [title]);
 
-  // Update debouncedSave's title reference
   useEffect(() => {
     if (!editor) return;
     const handler = () => {
@@ -117,7 +145,6 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
     }
   };
 
-  // Image upload
   const uploadImage = async (file: File): Promise<string | null> => {
     if (!user) return null;
     const ext = file.name.split(".").pop() || "png";
@@ -146,7 +173,6 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
     e.target.value = "";
   };
 
-  // Paste image support
   useEffect(() => {
     if (!editor) return;
     const handlePaste = (view: any, event: ClipboardEvent) => {
@@ -222,6 +248,48 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
           />
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {/* Page font size setting */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors"
+                title="页面字体大小"
+              >
+                <Settings2 className="w-3 h-3" />
+                字号
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-4" align="end">
+              <p className="text-xs font-medium text-foreground mb-3">页面字体大小</p>
+              <Slider
+                value={[pageFontSize]}
+                onValueChange={handlePageFontSizeChange}
+                min={12}
+                max={24}
+                step={1}
+                className="mb-2"
+              />
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>12px</span>
+                <span className="font-medium text-foreground">{pageFontSize}px</span>
+                <span>24px</span>
+              </div>
+              <div className="flex gap-1 mt-3">
+                {PAGE_FONT_SIZES.map((s) => (
+                  <button
+                    key={s.value}
+                    onClick={() => handlePageFontSizeChange([s.value])}
+                    className={`flex-1 py-1 text-xs rounded transition-colors ${
+                      pageFontSize === s.value ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-accent"
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+
           {voiceSupported && (
             <button
               onClick={handleVoiceToggle}
@@ -231,7 +299,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
                   : "bg-accent text-accent-foreground hover:bg-accent/80"
               }`}
             >
-              {isListening ? <Mic className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
+              <Mic className="w-3 h-3" />
               {isListening ? "停止录音" : "语音速记"}
             </button>
           )}
@@ -281,7 +349,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
       <EditorToolbar editor={editor} onInsertImage={() => fileInputRef.current?.click()} />
 
       {/* Editor area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div className="flex-1 overflow-y-auto p-6 space-y-4" style={{ fontSize: `${pageFontSize}px` }}>
         <input
           type="text"
           value={title}
