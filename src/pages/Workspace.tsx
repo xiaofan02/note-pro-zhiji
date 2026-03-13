@@ -378,8 +378,9 @@ const Workspace = () => {
                     <div key={folder.id} className="mb-1">
                       {/* Folder header - drop target */}
                       <div
-                        onDragOver={(e) => { e.preventDefault(); setDragOverFolderId(folder.id); }}
-                        onDragLeave={() => setDragOverFolderId(null)}
+                        onDragOver={(e) => { e.preventDefault(); }}
+                        onDragEnter={(e) => handleFolderDragEnter(e, folder.id)}
+                        onDragLeave={(e) => handleFolderDragLeave(e, folder.id)}
                         onDrop={(e) => handleDropOnFolder(e, folder.id)}
                         onClick={() => setActiveFolderId(activeFolderId === folder.id ? null : folder.id)}
                         className={cn(
