@@ -24,6 +24,8 @@ const Workspace = () => {
   const { notes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, refreshNotes } = useNotes();
   const { tags, noteTagsMap, createTag, addTagToNote, removeTagFromNote, getTagsForNote } = useTags();
   const { folders, createFolder, renameFolder, deleteFolder, moveNoteToFolder, getChildFolders } = useFolders();
+  const { importFile, acceptString } = useDocumentImport();
+  const importInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
