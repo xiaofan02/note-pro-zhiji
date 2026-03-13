@@ -88,6 +88,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
     setTitle(note.title);
     setSummary(null);
     if (editor && editor.getHTML() !== note.content) {
+      skipNextUpdate.current = true;
       editor.commands.setContent(note.content || "");
     }
   }, [note.id]);
