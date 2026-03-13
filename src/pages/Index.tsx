@@ -1,4 +1,7 @@
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Mic, Brain, Search, FileText, Monitor, Sparkles } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
 import FeatureSection from "@/components/FeatureSection";
@@ -15,6 +18,21 @@ import sectionSync from "@/assets/section-sync.png";
 import sectionKnowledge from "@/assets/section-knowledge.png";
 
 const Index = () => {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && user) navigate("/workspace", { replace: true });
+  }, [user, loading, navigate]);
+
+  if (loading || user) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse text-muted-foreground">加载中...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />

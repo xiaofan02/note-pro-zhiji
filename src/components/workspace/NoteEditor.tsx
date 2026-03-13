@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Note } from "@/hooks/useNotes";
 import { Tag } from "@/hooks/useTags";
-import { Save, Sparkles, FileText, Loader2, Mic, MicOff } from "lucide-react";
+import { Save, Sparkles, FileText, Loader2, Mic, MicOff, Image as ImageIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
+import { useAuth } from "@/hooks/useAuth";
 import TagManager from "./TagManager";
 
 interface NoteEditorProps {
@@ -18,13 +19,17 @@ interface NoteEditorProps {
 }
 
 const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onRemoveTag }: NoteEditorProps) => {
+  const { user } = useAuth();
   const [title, setTitle] = useState(note.title);
   const [content, setContent] = useState(note.content);
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
   const voiceTextRef = useRef("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const { isListening, isSupported: voiceSupported, start: startListening, stop: stopListening } = useSpeechRecognition({
@@ -73,6 +78,65 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
     debouncedSave(title, val);
   };
 
+  // Image upload helper
+  const uploadImage = async (file: File): Promise<string | null> => {
+    if (!user) return null;
+    const ext = file.name.split(".").pop() || "png";
+    const path = `${user.id}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("note-images").upload(path, file);
+    if (error) {
+      toast({ title: "图片上传失败", description: error.message, variant: "destructive" });
+      return null;
+    }
+    const { data: urlData } = supabase.storage.from("note-images").getPublicUrl(path);
+    return urlData.publicUrl;
+  };
+
+  const insertImageAtCursor = (url: string) => {
+    const textarea = textareaRef.current;
+    const imageMarkdown = `\n![图片](${url})\n`;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const newContent = content.slice(0, start) + imageMarkdown + content.slice(start);
+      setContent(newContent);
+      debouncedSave(title, newContent);
+    } else {
+      const newContent = content + imageMarkdown;
+      setContent(newContent);
+      debouncedSave(title, newContent);
+    }
+  };
+
+  // Handle paste event for images
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith("image/")) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (!file) continue;
+        setUploadingImage(true);
+        const url = await uploadImage(file);
+        if (url) insertImageAtCursor(url);
+        setUploadingImage(false);
+        return;
+      }
+    }
+  };
+
+  // Handle file input
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    const url = await uploadImage(file);
+    if (url) insertImageAtCursor(url);
+    setUploadingImage(false);
+    e.target.value = "";
+  };
+
   const handleAiAction = async (action: "organize" | "summarize") => {
     if (!content.trim()) {
       toast({ title: "内容为空", description: "请先写点内容再使用 AI 功能", variant: "destructive" });
@@ -105,7 +169,15 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
 
   return (
     <div className="flex-1 flex flex-col h-full">
-      <div className="flex items-center justify-between px-6 py-3 border-b border-border gap-2">
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        accept="image/png,image/jpeg,image/gif,image/webp"
+        onChange={handleFileSelect}
+      />
+
+      <div className="flex items-center justify-between px-6 py-3 border-b border-border gap-2 bg-background">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <span className="text-xs text-muted-foreground shrink-0">
             {new Date(note.updated_at).toLocaleString("zh-CN")}
@@ -119,6 +191,14 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
           />
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingImage}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors disabled:opacity-50"
+          >
+            {uploadingImage ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImageIcon className="w-3 h-3" />}
+            插入图片
+          </button>
           {voiceSupported && (
             <button
               onClick={handleVoiceToggle}
@@ -154,6 +234,12 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
         </div>
       </div>
 
+      {uploadingImage && (
+        <div className="mx-6 mt-2 px-3 py-2 bg-accent rounded-lg text-xs text-muted-foreground flex items-center gap-2">
+          <Loader2 className="w-3 h-3 animate-spin" /> 正在上传图片...
+        </div>
+      )}
+
       {summary && (
         <div className="mx-6 mt-4 p-4 rounded-lg bg-accent/50 border border-border">
           <div className="flex items-center justify-between mb-2">
@@ -177,9 +263,11 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
           className="w-full text-2xl font-bold bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/40"
         />
         <textarea
+          ref={textareaRef}
           value={content}
           onChange={(e) => handleContentChange(e.target.value)}
-          placeholder="开始写点什么吧..."
+          onPaste={handlePaste}
+          placeholder="开始写点什么吧...（支持粘贴图片）"
           className="w-full flex-1 min-h-[60vh] bg-transparent border-none outline-none text-foreground text-base leading-relaxed resize-none placeholder:text-muted-foreground/40"
         />
       </div>
