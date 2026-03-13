@@ -7,7 +7,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useAuth } from "@/hooks/useAuth";
 import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
 import TagManager from "./TagManager";
+import MarkdownToolbar from "./MarkdownToolbar";
 
 interface NoteEditorProps {
   note: Note;
@@ -285,6 +287,14 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
         </div>
       )}
 
+      {(previewMode === "edit" || previewMode === "split") && (
+        <MarkdownToolbar
+          textareaRef={textareaRef}
+          content={content}
+          onContentChange={handleContentChange}
+        />
+      )}
+
       <div className="flex-1 overflow-hidden flex">
         {/* Editor pane */}
         {(previewMode === "edit" || previewMode === "split") && (
@@ -330,7 +340,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
                 prose-img:rounded-lg prose-img:max-w-full prose-img:shadow-sm
                 prose-hr:border-border
               ">
-                <ReactMarkdown>{content}</ReactMarkdown>
+                <ReactMarkdown rehypePlugins={[rehypeRaw]}>{content}</ReactMarkdown>
               </div>
             ) : (
               <p className="text-muted-foreground text-sm">暂无内容</p>
