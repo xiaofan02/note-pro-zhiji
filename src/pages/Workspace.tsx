@@ -485,9 +485,12 @@ const Workspace = () => {
                     >
                       未分类
                     </p>
+                    {unfolderedNotes.map(renderNoteItem)}
+                    {unfolderedNotes.length === 0 && (
+                      <p className="text-xs text-muted-foreground/50 py-2 pl-4">无未分类笔记</p>
+                    )}
                   </div>
                 )}
-                {unfolderedNotes.map(renderNoteItem)}
               </>
             )}
 
