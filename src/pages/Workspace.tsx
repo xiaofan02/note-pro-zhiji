@@ -535,17 +535,6 @@ const Workspace = () => {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
-                    onClick={() => setShowAiChat(!showAiChat)}
-                    className={`p-2 rounded-lg transition-colors ${showAiChat ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right" className="text-xs">AI 对话</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
                     onClick={toggleDarkMode}
                     className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                   >
