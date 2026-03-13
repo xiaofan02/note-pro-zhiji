@@ -1,4 +1,5 @@
-import { Plus, FileText, Trash2 } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, FileText, Trash2, Search } from "lucide-react";
 import { Note } from "@/hooks/useNotes";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +12,18 @@ interface NoteListProps {
 }
 
 const NoteList = ({ notes, activeNoteId, onSelect, onCreate, onDelete }: NoteListProps) => {
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredNotes = useMemo(() => {
+    if (!searchQuery.trim()) return notes;
+    const q = searchQuery.toLowerCase();
+    return notes.filter(
+      (n) =>
+        n.title.toLowerCase().includes(q) ||
+        n.content.toLowerCase().includes(q)
+    );
+  }, [notes, searchQuery]);
+
   return (
     <aside className="w-72 border-r border-border bg-sidebar-background flex flex-col h-full">
       <div className="p-4 border-b border-border flex items-center justify-between">
@@ -22,6 +35,18 @@ const NoteList = ({ notes, activeNoteId, onSelect, onCreate, onDelete }: NoteLis
         >
           <Plus className="w-4 h-4" />
         </button>
+      </div>
+      <div className="px-3 py-2 border-b border-border">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="搜索笔记..."
+            className="w-full pl-8 pr-3 py-1.5 text-sm bg-muted rounded-md border-none outline-none text-foreground placeholder:text-muted-foreground/50 focus:ring-1 focus:ring-ring"
+          />
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
         {notes.length === 0 && (
