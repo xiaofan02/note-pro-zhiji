@@ -85,6 +85,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   });
 
   useEffect(() => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
     setTitle(note.title);
     setSummary(null);
     if (editor && editor.getHTML() !== note.content) {
