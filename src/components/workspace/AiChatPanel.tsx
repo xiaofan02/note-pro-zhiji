@@ -194,10 +194,9 @@ const AiChatPanel = ({ onSaveNote, onClose }: AiChatPanelProps) => {
   if (!isOpen) {
     return (
       <div
-        className="fixed right-4 z-50 flex flex-col items-center gap-1"
+        className="fixed right-4 z-50 flex flex-col items-center gap-1.5"
         style={{ top: `${position}%`, transform: "translateY(-50%)" }}
       >
-        {/* Drag handle area */}
         <div
           onMouseDown={handleDragStart}
           onTouchStart={handleDragStart}
@@ -209,11 +208,7 @@ const AiChatPanel = ({ onSaveNote, onClose }: AiChatPanelProps) => {
         >
           <MessageSquare className="w-5 h-5" />
         </div>
-        {messages.length > 0 && (
-          <span className="text-[10px] bg-destructive text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center absolute -top-1 -right-1">
-            {messages.filter(m => m.role === "assistant").length}
-          </span>
-        )}
+        <span className="text-[10px] text-muted-foreground font-medium whitespace-nowrap select-none pointer-events-none">AI助理</span>
       </div>
     );
   }
