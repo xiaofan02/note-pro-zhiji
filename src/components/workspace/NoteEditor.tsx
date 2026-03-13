@@ -119,6 +119,19 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
           />
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {voiceSupported && (
+            <button
+              onClick={handleVoiceToggle}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                isListening
+                  ? "bg-destructive text-destructive-foreground animate-pulse"
+                  : "bg-accent text-accent-foreground hover:bg-accent/80"
+              }`}
+            >
+              {isListening ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
+              {isListening ? "停止录音" : "语音速记"}
+            </button>
+          )}
           <button
             onClick={() => handleAiAction("organize")}
             disabled={!!aiLoading}
