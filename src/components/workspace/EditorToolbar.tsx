@@ -3,8 +3,9 @@ import {
   Bold, Italic, Strikethrough, Heading1, Heading2, Heading3,
   List, ListOrdered, CheckSquare, Link, Quote, Code, Minus,
   Palette, Highlighter, Image as ImageIcon, Undo2, Redo2,
-  CodeSquare, Type
+  CodeSquare, Type, AArrowUp, AArrowDown
 } from "lucide-react";
+import { useState, useEffect } from "react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -35,16 +36,8 @@ const BG_COLORS = [
   { label: "橙色", value: "#ffedd5", class: "bg-orange-100" },
 ];
 
-const FONT_SIZES = [
-  { label: "12px", value: "12px" },
-  { label: "14px", value: "14px" },
-  { label: "16px", value: "16px" },
-  { label: "18px", value: "18px" },
-  { label: "20px", value: "20px" },
-  { label: "24px", value: "24px" },
-  { label: "28px", value: "28px" },
-  { label: "32px", value: "32px" },
-];
+const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32];
+const DEFAULT_SIZE = 16;
 
 interface ToolbarBtnProps {
   onClick: () => void;
@@ -73,7 +66,66 @@ const ToolbarBtn = ({ onClick, active = false, disabled, tooltip, children }: To
   </Tooltip>
 );
 
+function getCurrentFontSize(editor: Editor): number {
+  const attrs = editor.getAttributes("textStyle");
+  if (attrs?.fontSize) {
+    return parseInt(attrs.fontSize, 10);
+  }
+  return DEFAULT_SIZE;
+}
+
+function stepFontSize(editor: Editor, direction: "up" | "down") {
+  const current = getCurrentFontSize(editor);
+  let targetIndex: number;
+  if (direction === "up") {
+    targetIndex = FONT_SIZES.findIndex((s) => s > current);
+    if (targetIndex === -1) return; // already max
+  } else {
+    const reverseIdx = [...FONT_SIZES].reverse().findIndex((s) => s < current);
+    if (reverseIdx === -1) return; // already min
+    targetIndex = FONT_SIZES.length - 1 - reverseIdx;
+  }
+  const newSize = FONT_SIZES[targetIndex];
+  if (newSize === DEFAULT_SIZE) {
+    editor.chain().focus().unsetFontSize().run();
+  } else {
+    editor.chain().focus().setFontSize(`${newSize}px`).run();
+  }
+}
+
 const EditorToolbar = ({ editor, onInsertImage }: EditorToolbarProps) => {
+  const [currentSize, setCurrentSize] = useState(DEFAULT_SIZE);
+
+  // Update current font size on selection/transaction change
+  useEffect(() => {
+    if (!editor) return;
+    const update = () => setCurrentSize(getCurrentFontSize(editor));
+    editor.on("selectionUpdate", update);
+    editor.on("transaction", update);
+    return () => {
+      editor.off("selectionUpdate", update);
+      editor.off("transaction", update);
+    };
+  }, [editor]);
+
+  // Keyboard shortcuts for font size
+  useEffect(() => {
+    if (!editor) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
+        if (e.key === ">" || e.key === ".") {
+          e.preventDefault();
+          stepFontSize(editor, "up");
+        } else if (e.key === "<" || e.key === ",") {
+          e.preventDefault();
+          stepFontSize(editor, "down");
+        }
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [editor]);
+
   if (!editor) return null;
 
   const setLink = () => {
@@ -83,46 +135,48 @@ const EditorToolbar = ({ editor, onInsertImage }: EditorToolbarProps) => {
     }
   };
 
-  const currentFontSize = editor.getAttributes("textStyle")?.fontSize || "";
-
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex items-center gap-0.5 px-6 py-1.5 border-b border-border bg-muted/30 flex-wrap">
-        <ToolbarBtn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} tooltip="撤销">
+        <ToolbarBtn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} tooltip="撤销 (Ctrl+Z)">
           <Undo2 className="w-3.5 h-3.5" />
         </ToolbarBtn>
-        <ToolbarBtn onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} tooltip="重做">
+        <ToolbarBtn onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} tooltip="重做 (Ctrl+Y)">
           <Redo2 className="w-3.5 h-3.5" />
         </ToolbarBtn>
 
         <div className="w-px h-4 bg-border mx-1" />
 
-        {/* Font size selector */}
+        {/* Font size: decrease, display, increase */}
+        <ToolbarBtn onClick={() => stepFontSize(editor, "down")} tooltip="减小字号 (Ctrl+Shift+,)">
+          <AArrowDown className="w-3.5 h-3.5" />
+        </ToolbarBtn>
+
         <Tooltip>
           <TooltipTrigger asChild>
             <Popover>
               <PopoverTrigger asChild>
-                <button className="inline-flex items-center gap-1 px-1.5 h-7 rounded transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground text-xs">
-                  <Type className="w-3.5 h-3.5" />
-                  <span className="min-w-[28px] text-center">{currentFontSize || "默认"}</span>
+                <button className="inline-flex items-center gap-1 px-1.5 h-7 rounded transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground text-xs min-w-[40px] justify-center">
+                  <Type className="w-3 h-3" />
+                  <span>{currentSize}px</span>
                 </button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-2" align="start">
                 <p className="text-xs text-muted-foreground mb-1.5 font-medium">文字大小</p>
                 <div className="flex flex-col gap-0.5">
                   <button
-                    onClick={() => editor.chain().focus().unsetFontSize().run()}
-                    className="px-3 py-1 text-xs rounded hover:bg-accent text-left"
+                    onClick={() => { editor.chain().focus().unsetFontSize().run(); }}
+                    className={`px-3 py-1 text-xs rounded hover:bg-accent text-left ${currentSize === DEFAULT_SIZE ? "bg-accent font-medium" : ""}`}
                   >
-                    默认
+                    默认 (16px)
                   </button>
-                  {FONT_SIZES.map((s) => (
+                  {FONT_SIZES.filter(s => s !== DEFAULT_SIZE).map((s) => (
                     <button
-                      key={s.value}
-                      onClick={() => editor.chain().focus().setFontSize(s.value).run()}
-                      className={`px-3 py-1 text-xs rounded hover:bg-accent text-left ${currentFontSize === s.value ? "bg-accent font-medium" : ""}`}
+                      key={s}
+                      onClick={() => editor.chain().focus().setFontSize(`${s}px`).run()}
+                      className={`px-3 py-1 text-xs rounded hover:bg-accent text-left ${currentSize === s ? "bg-accent font-medium" : ""}`}
                     >
-                      {s.label}
+                      {s}px
                     </button>
                   ))}
                 </div>
@@ -132,15 +186,19 @@ const EditorToolbar = ({ editor, onInsertImage }: EditorToolbarProps) => {
           <TooltipContent side="bottom" className="text-xs">文字大小</TooltipContent>
         </Tooltip>
 
+        <ToolbarBtn onClick={() => stepFontSize(editor, "up")} tooltip="增大字号 (Ctrl+Shift+.)">
+          <AArrowUp className="w-3.5 h-3.5" />
+        </ToolbarBtn>
+
         <div className="w-px h-4 bg-border mx-1" />
 
-        <ToolbarBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")} tooltip="粗体">
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")} tooltip="粗体 (Ctrl+B)">
           <Bold className="w-3.5 h-3.5" />
         </ToolbarBtn>
-        <ToolbarBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive("italic")} tooltip="斜体">
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive("italic")} tooltip="斜体 (Ctrl+I)">
           <Italic className="w-3.5 h-3.5" />
         </ToolbarBtn>
-        <ToolbarBtn onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive("strike")} tooltip="删除线">
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive("strike")} tooltip="删除线 (Ctrl+Shift+S)">
           <Strikethrough className="w-3.5 h-3.5" />
         </ToolbarBtn>
 

@@ -1,13 +1,15 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
-  Sparkles, FileText, LogOut, Plus, Search, Trash2, Moon, Sun
+  Sparkles, FileText, LogOut, Plus, Search, Trash2, Moon, Sun, User
 } from "lucide-react";
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotes } from "@/hooks/useNotes";
 import { useTags } from "@/hooks/useTags";
 import NoteEditor from "@/components/workspace/NoteEditor";
 import TagFilter from "@/components/workspace/TagFilter";
+import SettingsDialog from "@/components/workspace/SettingsDialog";
 import { cn } from "@/lib/utils";
 
 const Workspace = () => {
@@ -18,6 +20,15 @@ const Workspace = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
+  const [pageFontSize, setPageFontSize] = useState(() => {
+    const saved = localStorage.getItem("noteFontSize");
+    return saved ? parseInt(saved, 10) : 15;
+  });
+
+  const handlePageFontSizeChange = (size: number) => {
+    setPageFontSize(size);
+    localStorage.setItem("noteFontSize", String(size));
+  };
 
   const toggleDarkMode = () => {
     const next = !isDark;
@@ -66,39 +77,20 @@ const Workspace = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background">
-      {/* Top header */}
-      <header className="h-13 border-b border-border bg-card flex items-center justify-between px-5 shrink-0">
-        <Link to="/" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
-            <Sparkles className="w-4 h-4 text-primary-foreground" />
-          </div>
-          <span className="text-sm font-bold text-foreground tracking-tight">智记 AI</span>
-        </Link>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground hidden sm:inline">
-            {user?.user_metadata?.full_name || user?.email?.split("@")[0]}
-          </span>
-          <button
-            onClick={toggleDarkMode}
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            title={isDark ? "切换到浅色模式" : "切换到深色模式"}
-          >
-            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
-          <button
-            onClick={handleSignOut}
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            title="退出登录"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
-      </header>
-
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left sidebar - note list */}
+    <div className="h-screen flex bg-background">
+      <TooltipProvider delayDuration={300}>
+        {/* Left sidebar */}
         <aside className="w-72 border-r border-border bg-card flex flex-col h-full shrink-0">
+          {/* Logo */}
+          <div className="h-13 border-b border-border flex items-center px-5 shrink-0">
+            <Link to="/" className="flex items-center gap-2.5">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
+                <Sparkles className="w-4 h-4 text-primary-foreground" />
+              </div>
+              <span className="text-sm font-bold text-foreground tracking-tight">智记 AI</span>
+            </Link>
+          </div>
+
           {/* Search */}
           <div className="p-3 space-y-2">
             <div className="relative">
@@ -196,6 +188,50 @@ const Workspace = () => {
               );
             })}
           </div>
+
+          {/* Bottom: user info + actions */}
+          <div className="border-t border-border p-3 space-y-2 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                <User className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <span className="text-xs text-foreground truncate flex-1">
+                {user?.user_metadata?.full_name || user?.email?.split("@")[0]}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={toggleDarkMode}
+                    className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  >
+                    {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="text-xs">
+                  {isDark ? "切换到浅色模式" : "切换到深色模式"}
+                </TooltipContent>
+              </Tooltip>
+
+              <SettingsDialog
+                pageFontSize={pageFontSize}
+                onPageFontSizeChange={handlePageFontSizeChange}
+              />
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={handleSignOut}
+                    className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="text-xs">退出登录</TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
         </aside>
 
         {/* Right - editor area */}
@@ -209,6 +245,7 @@ const Workspace = () => {
               onCreateTag={createTag}
               onAddTag={addTagToNote}
               onRemoveTag={removeTagFromNote}
+              pageFontSize={pageFontSize}
             />
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-5">
@@ -222,7 +259,7 @@ const Workspace = () => {
             </div>
           )}
         </main>
-      </div>
+      </TooltipProvider>
     </div>
   );
 };
