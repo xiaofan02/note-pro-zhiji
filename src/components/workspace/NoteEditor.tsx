@@ -287,6 +287,14 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
         </div>
       )}
 
+      {(previewMode === "edit" || previewMode === "split") && (
+        <MarkdownToolbar
+          textareaRef={textareaRef}
+          content={content}
+          onContentChange={handleContentChange}
+        />
+      )}
+
       <div className="flex-1 overflow-hidden flex">
         {/* Editor pane */}
         {(previewMode === "edit" || previewMode === "split") && (
