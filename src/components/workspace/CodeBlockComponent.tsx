@@ -38,7 +38,7 @@ const CodeBlockComponent = ({ node, updateAttributes, extension }: NodeViewProps
         </button>
       </div>
       <pre className="!rounded-t-none !mt-0">
-        <NodeViewContent as="code" />
+        <NodeViewContent as={"code" as any} />
       </pre>
     </NodeViewWrapper>
   );
