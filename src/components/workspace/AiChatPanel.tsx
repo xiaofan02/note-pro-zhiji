@@ -20,6 +20,7 @@ const AiChatPanel = ({ onSaveNote }: AiChatPanelProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("chat");
   const [localMessages, setLocalMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [bubbleY, setBubbleY] = useState(() => {
     const saved = localStorage.getItem("aiChatBubbleY");
