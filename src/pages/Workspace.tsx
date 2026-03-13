@@ -36,7 +36,7 @@ const Workspace = () => {
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const [dragOverUnfoldered, setDragOverUnfoldered] = useState(false);
-  const [showAiChat, setShowAiChat] = useState(false);
+  const [showAiChat, setShowAiChat] = useState(true);
   const dragCounterRef = useRef<Record<string, number>>({});
 
   const handlePageFontSizeChange = (size: number) => {
