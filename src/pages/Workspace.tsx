@@ -114,6 +114,7 @@ const Workspace = () => {
   const handleDropOnFolder = async (e: React.DragEvent, folderId: string) => {
     e.preventDefault();
     e.stopPropagation();
+    dragCounterRef.current[folderId] = 0;
     setDragOverFolderId(null);
     const noteId = e.dataTransfer.getData("text/plain");
     if (noteId) {
@@ -122,13 +123,48 @@ const Workspace = () => {
     }
   };
 
+  const handleFolderDragEnter = (e: React.DragEvent, folderId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current[folderId] = (dragCounterRef.current[folderId] || 0) + 1;
+    setDragOverFolderId(folderId);
+  };
+
+  const handleFolderDragLeave = (e: React.DragEvent, folderId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current[folderId] = (dragCounterRef.current[folderId] || 0) - 1;
+    if (dragCounterRef.current[folderId] <= 0) {
+      dragCounterRef.current[folderId] = 0;
+      setDragOverFolderId(null);
+    }
+  };
+
   const handleDropOnUnfoldered = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    dragCounterRef.current["__unfoldered"] = 0;
     setDragOverUnfoldered(false);
     const noteId = e.dataTransfer.getData("text/plain");
     if (noteId) {
       await handleMoveNote(noteId, null);
+    }
+  };
+
+  const handleUnfolderedDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current["__unfoldered"] = (dragCounterRef.current["__unfoldered"] || 0) + 1;
+    setDragOverUnfoldered(true);
+  };
+
+  const handleUnfolderedDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current["__unfoldered"] = (dragCounterRef.current["__unfoldered"] || 0) - 1;
+    if (dragCounterRef.current["__unfoldered"] <= 0) {
+      dragCounterRef.current["__unfoldered"] = 0;
+      setDragOverUnfoldered(false);
     }
   };
 
