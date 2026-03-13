@@ -498,7 +498,25 @@ const Workspace = () => {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs">新建目录</TooltipContent>
             </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => importInputRef.current?.click()}
+                  className="px-3 py-2 rounded-lg bg-accent text-accent-foreground text-sm font-medium hover:bg-accent/80 transition-colors"
+                >
+                  <Upload className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">导入文档</TooltipContent>
+            </Tooltip>
           </div>
+          <input
+            type="file"
+            ref={importInputRef}
+            className="hidden"
+            accept={acceptString}
+            onChange={handleImportFile}
+          />
 
           {/* Note list with folders */}
           <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
