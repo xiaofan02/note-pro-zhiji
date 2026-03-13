@@ -173,9 +173,11 @@ const Workspace = () => {
     return (
       <div
         key={note.id}
+        draggable
+        onDragStart={(e) => handleDragStart(e, note.id)}
         onClick={() => setActiveNoteId(note.id)}
         className={cn(
-          "group flex items-start gap-2.5 p-3 rounded-lg cursor-pointer transition-all",
+          "group flex items-start gap-2.5 p-3 rounded-lg cursor-grab transition-all active:cursor-grabbing",
           isActive
             ? "bg-accent text-accent-foreground shadow-sm"
             : "hover:bg-muted/60 text-foreground"
