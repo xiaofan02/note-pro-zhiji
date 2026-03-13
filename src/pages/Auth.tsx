@@ -20,7 +20,7 @@ const Auth = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (user) navigate("/");
+    if (user) navigate("/workspace");
   }, [user, navigate]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
