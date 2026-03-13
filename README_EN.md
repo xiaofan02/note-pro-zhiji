@@ -59,6 +59,10 @@ Open `http://localhost:5173` in your browser.
 - **Backend** — Lovable Cloud (Database, Auth, Storage, Edge Functions)
 - **AI** — Integrated AI models for note organization and chat
 
+## 🙏 Acknowledgments
+
+This project was inspired by [Get笔记 (GetBNote)](https://getbnote.com). While using Get笔记, I was impressed by its excellent design, but found that it didn't fully meet my specific needs. I built Smart Note AI by drawing on Get笔记's strengths and extending it with additional features tailored to my own workflow. Many thanks to the Get笔记 team for the inspiration!
+
 ## 📄 License
 
 MIT License
