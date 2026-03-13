@@ -3,11 +3,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
+const PAGE_FONT_MIN = 12;
+const PAGE_FONT_MAX = 24;
+
 const PAGE_FONT_PRESETS = [
-  { label: "小", value: 13 },
+  { label: "小", value: PAGE_FONT_MIN },
   { label: "默认", value: 15 },
-  { label: "大", value: 17 },
-  { label: "特大", value: 20 },
+  { label: "大", value: 18 },
+  { label: "特大", value: PAGE_FONT_MAX },
 ];
 
 interface SettingsDialogProps {
@@ -42,13 +45,13 @@ const SettingsDialog = ({ pageFontSize, onPageFontSizeChange }: SettingsDialogPr
             <Slider
               value={[pageFontSize]}
               onValueChange={(val) => onPageFontSizeChange(val[0])}
-              min={12}
-              max={24}
+              min={PAGE_FONT_MIN}
+              max={PAGE_FONT_MAX}
               step={1}
             />
             <div className="flex justify-between text-[10px] text-muted-foreground">
-              <span>12px</span>
-              <span>24px</span>
+              <span>{PAGE_FONT_MIN}px</span>
+              <span>{PAGE_FONT_MAX}px</span>
             </div>
             <div className="flex gap-1.5">
               {PAGE_FONT_PRESETS.map((s) => (
