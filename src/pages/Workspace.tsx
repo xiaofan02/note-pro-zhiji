@@ -2,15 +2,17 @@ import React, { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import { useNavigate, Link } from "react-router-dom";
 import {
   Sparkles, FileText, LogOut, Plus, Search, Trash2, Moon, Sun, User,
-  FolderOpen, Folder, ChevronRight, ChevronDown, MoreHorizontal, FolderPlus, Edit2
+  FolderOpen, Folder, ChevronRight, ChevronDown, MoreHorizontal, FolderPlus, Edit2, MessageSquare
 } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { useNotes } from "@/hooks/useNotes";
 import { useTags } from "@/hooks/useTags";
 import { useFolders, Folder as FolderType } from "@/hooks/useFolders";
 import NoteEditor from "@/components/workspace/NoteEditor";
+import AiChatPanel from "@/components/workspace/AiChatPanel";
 import TagFilter from "@/components/workspace/TagFilter";
 import SettingsDialog from "@/components/workspace/SettingsDialog";
 import { cn } from "@/lib/utils";
@@ -34,6 +36,7 @@ const Workspace = () => {
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const [dragOverUnfoldered, setDragOverUnfoldered] = useState(false);
+  const [showAiChat, setShowAiChat] = useState(false);
   const dragCounterRef = useRef<Record<string, number>>({});
 
   const handlePageFontSizeChange = (size: number) => {
@@ -532,6 +535,17 @@ const Workspace = () => {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
+                    onClick={() => setShowAiChat(!showAiChat)}
+                    className={`p-2 rounded-lg transition-colors ${showAiChat ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="text-xs">AI 对话</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
                     onClick={toggleDarkMode}
                     className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                   >
@@ -565,27 +579,45 @@ const Workspace = () => {
 
         {/* Right - editor area */}
         <main className="flex-1 flex bg-section-alt">
-          {activeNote ? (
-            <NoteEditor
-              note={activeNote}
-              onUpdate={updateNote}
-              tags={tags}
-              noteTags={getTagsForNote(activeNote.id)}
-              onCreateTag={createTag}
-              onAddTag={addTagToNote}
-              onRemoveTag={removeTagFromNote}
-              pageFontSize={pageFontSize}
+          <div className="flex-1 flex">
+            {activeNote ? (
+              <NoteEditor
+                note={activeNote}
+                onUpdate={updateNote}
+                tags={tags}
+                noteTags={getTagsForNote(activeNote.id)}
+                onCreateTag={createTag}
+                onAddTag={addTagToNote}
+                onRemoveTag={removeTagFromNote}
+                pageFontSize={pageFontSize}
+              />
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-5">
+                <div className="w-20 h-20 rounded-2xl bg-accent flex items-center justify-center">
+                  <FileText className="w-8 h-8 text-primary/60" />
+                </div>
+                <div className="text-center space-y-1.5">
+                  <p className="font-semibold text-foreground text-lg">选择或创建一条笔记</p>
+                  <p className="text-sm">从左侧列表选择笔记，或点击「新建笔记」开始记录</p>
+                </div>
+              </div>
+            )}
+          </div>
+          {showAiChat && (
+            <AiChatPanel
+              onSaveNote={async (title, content) => {
+                if (!user) return;
+                const { data, error } = await supabase
+                  .from("notes")
+                  .insert({ user_id: user.id, title, content })
+                  .select("id, title, content, folder_id, created_at, updated_at")
+                  .single();
+                if (error) throw error;
+                refreshNotes();
+                if (data) setActiveNoteId(data.id);
+              }}
+              onClose={() => setShowAiChat(false)}
             />
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-5">
-              <div className="w-20 h-20 rounded-2xl bg-accent flex items-center justify-center">
-                <FileText className="w-8 h-8 text-primary/60" />
-              </div>
-              <div className="text-center space-y-1.5">
-                <p className="font-semibold text-foreground text-lg">选择或创建一条笔记</p>
-                <p className="text-sm">从左侧列表选择笔记，或点击「新建笔记」开始记录</p>
-              </div>
-            </div>
           )}
         </main>
       </TooltipProvider>
