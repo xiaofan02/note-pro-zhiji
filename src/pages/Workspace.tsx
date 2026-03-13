@@ -464,8 +464,9 @@ const Workspace = () => {
                 {/* Unfoldered notes - drop target */}
                 {(unfolderedNotes.length > 0 || folders.length > 0) && (
                   <div
-                    onDragOver={(e) => { e.preventDefault(); setDragOverUnfoldered(true); }}
-                    onDragLeave={() => setDragOverUnfoldered(false)}
+                    onDragOver={(e) => { e.preventDefault(); }}
+                    onDragEnter={handleUnfolderedDragEnter}
+                    onDragLeave={handleUnfolderedDragLeave}
                     onDrop={handleDropOnUnfoldered}
                     className={cn(
                       "mt-2 pt-2 border-t border-border/50 rounded-lg transition-colors",
