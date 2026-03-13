@@ -285,22 +285,58 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => handleTitleChange(e.target.value)}
-          placeholder="笔记标题"
-          className="w-full text-2xl font-bold bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/40"
-        />
-        <textarea
-          ref={textareaRef}
-          value={content}
-          onChange={(e) => handleContentChange(e.target.value)}
-          onPaste={handlePaste}
-          placeholder="开始写点什么吧...（支持粘贴图片）"
-          className="w-full flex-1 min-h-[60vh] bg-transparent border-none outline-none text-foreground text-base leading-relaxed resize-none placeholder:text-muted-foreground/40"
-        />
+      <div className="flex-1 overflow-hidden flex">
+        {/* Editor pane */}
+        {(previewMode === "edit" || previewMode === "split") && (
+          <div className={`${previewMode === "split" ? "w-1/2 border-r border-border" : "flex-1"} overflow-y-auto p-6 space-y-4`}>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => handleTitleChange(e.target.value)}
+              placeholder="笔记标题"
+              className="w-full text-2xl font-bold bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/40"
+            />
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => handleContentChange(e.target.value)}
+              onPaste={handlePaste}
+              placeholder="开始写点什么吧...支持 Markdown 语法（支持粘贴图片）"
+              className="w-full flex-1 min-h-[60vh] bg-transparent border-none outline-none text-foreground text-base leading-relaxed resize-none placeholder:text-muted-foreground/40 font-mono text-sm"
+            />
+          </div>
+        )}
+
+        {/* Preview pane */}
+        {(previewMode === "preview" || previewMode === "split") && (
+          <div className={`${previewMode === "split" ? "w-1/2" : "flex-1"} overflow-y-auto p-6`}>
+            {previewMode === "preview" && (
+              <h1 className="text-2xl font-bold text-foreground mb-4">
+                {title || "无标题笔记"}
+              </h1>
+            )}
+            {content ? (
+              <div className="prose prose-sm max-w-none text-foreground
+                prose-headings:text-foreground prose-headings:font-bold
+                prose-h1:text-xl prose-h2:text-lg prose-h3:text-base
+                prose-p:text-foreground prose-p:leading-relaxed
+                prose-strong:text-foreground prose-em:text-foreground
+                prose-a:text-primary prose-a:underline
+                prose-code:text-accent-foreground prose-code:bg-accent prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs
+                prose-pre:bg-muted prose-pre:rounded-lg prose-pre:p-4
+                prose-blockquote:border-l-4 prose-blockquote:border-primary prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-muted-foreground
+                prose-ul:list-disc prose-ol:list-decimal
+                prose-li:text-foreground
+                prose-img:rounded-lg prose-img:max-w-full prose-img:shadow-sm
+                prose-hr:border-border
+              ">
+                <ReactMarkdown>{content}</ReactMarkdown>
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">暂无内容</p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
