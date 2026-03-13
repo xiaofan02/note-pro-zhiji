@@ -186,6 +186,32 @@ const Workspace = () => {
     }
   };
 
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    const result = await importFile(file);
+    if (result) {
+      const { data, error } = await supabase
+        .from("notes")
+        .insert({
+          user_id: user.id,
+          title: result.title,
+          content: result.content,
+          folder_id: activeFolderId || null,
+        })
+        .select("id, title, content, folder_id, created_at, updated_at")
+        .single();
+      if (!error && data) {
+        await refreshNotes();
+        setActiveNoteId(data.id);
+        if (activeFolderId) {
+          setExpandedFolders((prev) => new Set(prev).add(activeFolderId));
+        }
+      }
+    }
+    e.target.value = "";
+  };
+
   const filteredNotes = useMemo(() => {
     let result = notes;
     if (selectedTagId) {
