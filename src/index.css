@@ -83,3 +83,85 @@
     @apply bg-background text-foreground font-sans antialiased;
   }
 }
+
+/* Tiptap editor styles */
+.tiptap-editor .tiptap {
+  @apply outline-none min-h-[60vh] text-foreground text-sm leading-relaxed;
+}
+
+.tiptap-editor .tiptap p {
+  @apply my-1;
+}
+
+.tiptap-editor .tiptap h1 {
+  @apply text-xl font-bold text-foreground mt-4 mb-2;
+}
+
+.tiptap-editor .tiptap h2 {
+  @apply text-lg font-bold text-foreground mt-3 mb-1.5;
+}
+
+.tiptap-editor .tiptap h3 {
+  @apply text-base font-bold text-foreground mt-2 mb-1;
+}
+
+.tiptap-editor .tiptap ul {
+  @apply list-disc pl-6 my-1;
+}
+
+.tiptap-editor .tiptap ol {
+  @apply list-decimal pl-6 my-1;
+}
+
+.tiptap-editor .tiptap li {
+  @apply text-foreground;
+}
+
+.tiptap-editor .tiptap ul[data-type="taskList"] {
+  @apply list-none pl-0;
+}
+
+.tiptap-editor .tiptap ul[data-type="taskList"] li {
+  @apply flex items-start gap-2;
+}
+
+.tiptap-editor .tiptap ul[data-type="taskList"] li label {
+  @apply mt-0.5;
+}
+
+.tiptap-editor .tiptap blockquote {
+  @apply border-l-4 border-primary pl-4 italic text-muted-foreground my-2;
+}
+
+.tiptap-editor .tiptap code {
+  @apply text-accent-foreground bg-accent px-1.5 py-0.5 rounded text-xs;
+}
+
+.tiptap-editor .tiptap pre {
+  @apply bg-muted rounded-lg p-4 my-2 overflow-x-auto;
+}
+
+.tiptap-editor .tiptap pre code {
+  @apply bg-transparent p-0;
+}
+
+.tiptap-editor .tiptap a {
+  @apply text-primary underline cursor-pointer;
+}
+
+.tiptap-editor .tiptap img {
+  @apply rounded-lg max-w-full shadow-sm my-2;
+}
+
+.tiptap-editor .tiptap hr {
+  @apply border-border my-4;
+}
+
+.tiptap-editor .tiptap mark {
+  @apply rounded px-0.5;
+}
+
+.tiptap-editor .tiptap p.is-editor-empty:first-child::before {
+  @apply text-muted-foreground/40 float-left h-0 pointer-events-none;
+  content: attr(data-placeholder);
+}
