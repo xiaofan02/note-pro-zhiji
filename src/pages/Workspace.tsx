@@ -80,6 +80,13 @@ const Workspace = () => {
             {user?.user_metadata?.full_name || user?.email?.split("@")[0]}
           </span>
           <button
+            onClick={toggleDarkMode}
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            title={isDark ? "切换到浅色模式" : "切换到深色模式"}
+          >
+            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+          <button
             onClick={handleSignOut}
             className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             title="退出登录"
