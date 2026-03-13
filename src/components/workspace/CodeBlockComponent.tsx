@@ -38,7 +38,7 @@ const CodeBlockComponent = ({ node, updateAttributes, extension }: NodeViewProps
     setRunning(true);
     setResult(null);
     try {
-      const res = await runCode(language, code);
+      const res = await runCode(effectiveLang, code);
       setResult(res);
     } catch (e: any) {
       setResult({ output: "", error: e.message });
@@ -46,7 +46,7 @@ const CodeBlockComponent = ({ node, updateAttributes, extension }: NodeViewProps
     setRunning(false);
   };
 
-  const canRun = isRunnable(language);
+  const canRun = isRunnable(effectiveLang);
 
   return (
     <NodeViewWrapper className="relative group my-2">
