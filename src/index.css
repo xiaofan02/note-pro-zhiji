@@ -84,6 +84,43 @@
   }
 }
 
+/* Global page font scaling via CSS variable --page-font-scale */
+.h-screen[style*="--page-font-scale"] {
+  font-size: calc(1rem * var(--page-font-scale, 1));
+}
+
+.h-screen[style*="--page-font-scale"] .text-xs {
+  font-size: calc(0.75rem * var(--page-font-scale, 1));
+}
+
+.h-screen[style*="--page-font-scale"] .text-sm {
+  font-size: calc(0.875rem * var(--page-font-scale, 1));
+}
+
+.h-screen[style*="--page-font-scale"] .text-base {
+  font-size: calc(1rem * var(--page-font-scale, 1));
+}
+
+.h-screen[style*="--page-font-scale"] .text-lg {
+  font-size: calc(1.125rem * var(--page-font-scale, 1));
+}
+
+.h-screen[style*="--page-font-scale"] .text-xl {
+  font-size: calc(1.25rem * var(--page-font-scale, 1));
+}
+
+.h-screen[style*="--page-font-scale"] .text-2xl {
+  font-size: calc(1.5rem * var(--page-font-scale, 1));
+}
+
+.h-screen[style*="--page-font-scale"] .text-\[10px\] {
+  font-size: calc(10px * var(--page-font-scale, 1));
+}
+
+.h-screen[style*="--page-font-scale"] .text-\[11px\] {
+  font-size: calc(11px * var(--page-font-scale, 1));
+}
+
 /* Tiptap editor styles */
 .tiptap-editor .tiptap {
   @apply outline-none min-h-[60vh] text-foreground text-sm leading-relaxed;
