@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import { useNavigate, Link } from "react-router-dom";
 import {
   Sparkles, FileText, LogOut, Plus, Search, Trash2, Moon, Sun, User,
-  FolderOpen, Folder, ChevronRight, ChevronDown, MoreHorizontal, FolderPlus, Edit2, MessageSquare
+  FolderOpen, Folder, ChevronRight, ChevronDown, MoreHorizontal, FolderPlus, Edit2
 } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -36,7 +36,7 @@ const Workspace = () => {
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const [dragOverUnfoldered, setDragOverUnfoldered] = useState(false);
-  const [showAiChat, setShowAiChat] = useState(false);
+  const [showAiChat, setShowAiChat] = useState(true);
   const dragCounterRef = useRef<Record<string, number>>({});
 
   const handlePageFontSizeChange = (size: number) => {
@@ -532,17 +532,6 @@ const Workspace = () => {
               </span>
             </div>
             <div className="flex items-center gap-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => setShowAiChat(!showAiChat)}
-                    className={`p-2 rounded-lg transition-colors ${showAiChat ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right" className="text-xs">AI 对话</TooltipContent>
-              </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
