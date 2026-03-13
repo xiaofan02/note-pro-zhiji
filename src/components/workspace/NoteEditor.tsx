@@ -99,6 +99,10 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   useEffect(() => {
     if (!editor) return;
     const handler = () => {
+      if (skipNextUpdate.current) {
+        skipNextUpdate.current = false;
+        return;
+      }
       const html = editor.getHTML();
       debouncedSave(titleRef.current, html);
     };
