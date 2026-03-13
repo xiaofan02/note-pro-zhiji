@@ -77,7 +77,7 @@ const Workspace = () => {
   }
 
   return (
-    <div className="h-screen flex bg-background">
+    <div className="h-screen flex bg-background" style={{ fontSize: `${pageFontSize}px` }}>
       <TooltipProvider delayDuration={300}>
         {/* Left sidebar */}
         <aside className="w-72 border-r border-border bg-card flex flex-col h-full shrink-0">
