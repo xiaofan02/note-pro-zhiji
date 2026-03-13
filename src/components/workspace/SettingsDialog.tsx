@@ -45,13 +45,13 @@ const SettingsDialog = ({ pageFontSize, onPageFontSizeChange }: SettingsDialogPr
             <Slider
               value={[pageFontSize]}
               onValueChange={(val) => onPageFontSizeChange(val[0])}
-              min={12}
-              max={24}
+              min={PAGE_FONT_MIN}
+              max={PAGE_FONT_MAX}
               step={1}
             />
             <div className="flex justify-between text-[10px] text-muted-foreground">
-              <span>12px</span>
-              <span>24px</span>
+              <span>{PAGE_FONT_MIN}px</span>
+              <span>{PAGE_FONT_MAX}px</span>
             </div>
             <div className="flex gap-1.5">
               {PAGE_FONT_PRESETS.map((s) => (
