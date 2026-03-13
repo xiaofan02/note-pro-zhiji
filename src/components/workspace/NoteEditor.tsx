@@ -7,7 +7,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useAuth } from "@/hooks/useAuth";
 import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
 import TagManager from "./TagManager";
+import MarkdownToolbar from "./MarkdownToolbar";
 
 interface NoteEditorProps {
   note: Note;
