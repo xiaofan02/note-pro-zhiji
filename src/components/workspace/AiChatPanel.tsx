@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, MessageSquare, X, Save, Bot, User } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Send, Loader2, MessageSquare, X, Save, Bot, User, Minus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
+import { cn } from "@/lib/utils";
 
 interface Message {
   role: "user" | "assistant";
@@ -21,8 +21,15 @@ const AiChatPanel = ({ onSaveNote, onClose }: AiChatPanelProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [position, setPosition] = useState(() => {
+    const saved = localStorage.getItem("aiChatBubbleY");
+    return saved ? parseInt(saved, 10) : 50; // percent from top
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartY = useRef(0);
+  const dragStartPos = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -30,6 +37,44 @@ const AiChatPanel = ({ onSaveNote, onClose }: AiChatPanelProps) => {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Drag handlers for the bubble
+  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+    dragStartY.current = clientY;
+    dragStartPos.current = position;
+  }, [position]);
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+      const deltaY = clientY - dragStartY.current;
+      const deltaPercent = (deltaY / window.innerHeight) * 100;
+      const newPos = Math.max(5, Math.min(85, dragStartPos.current + deltaPercent));
+      setPosition(newPos);
+    };
+
+    const handleEnd = () => {
+      setIsDragging(false);
+      localStorage.setItem("aiChatBubbleY", String(position));
+    };
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleEnd);
+    window.addEventListener("touchmove", handleMove);
+    window.addEventListener("touchend", handleEnd);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleEnd);
+      window.removeEventListener("touchmove", handleMove);
+      window.removeEventListener("touchend", handleEnd);
+    };
+  }, [isDragging, position]);
 
   const extractNoteFromResponse = (content: string): { cleanContent: string; noteTitle?: string; noteContent?: string } => {
     const noteMatch = content.match(/<!--SAVE_NOTE-->(.*?)\|\|\|(.*?)<!--\/SAVE_NOTE-->/s);
@@ -120,7 +165,6 @@ const AiChatPanel = ({ onSaveNote, onClose }: AiChatPanelProps) => {
       // Check for auto-save note marker
       const { cleanContent, noteTitle, noteContent } = extractNoteFromResponse(assistantContent);
       if (noteTitle && noteContent) {
-        // Update the message to clean version
         setMessages((prev) =>
           prev.map((m, i) => (i === prev.length - 1 && m.role === "assistant" ? { ...m, content: cleanContent || `已为你整理笔记「${noteTitle}」` } : m))
         );
@@ -128,7 +172,6 @@ const AiChatPanel = ({ onSaveNote, onClose }: AiChatPanelProps) => {
       }
     } catch (e: any) {
       toast({ title: "发送失败", description: e.message, variant: "destructive" });
-      // Remove the failed user message or add error
       setMessages((prev) => [...prev.filter((m) => !(m.role === "assistant" && m.content === "")), { role: "assistant", content: "抱歉，请求出现错误，请稍后重试。" }]);
     } finally {
       setIsLoading(false);
@@ -147,28 +190,78 @@ const AiChatPanel = ({ onSaveNote, onClose }: AiChatPanelProps) => {
     await handleSaveExtractedNote(title, `<p>${content}</p>`);
   };
 
+  // Floating bubble (collapsed state)
+  if (!isOpen) {
+    return (
+      <div
+        className="fixed right-4 z-50 flex flex-col items-center gap-1"
+        style={{ top: `${position}%`, transform: "translateY(-50%)" }}
+      >
+        {/* Drag handle area */}
+        <div
+          onMouseDown={handleDragStart}
+          onTouchStart={handleDragStart}
+          className={cn(
+            "w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg cursor-grab active:cursor-grabbing hover:scale-110 transition-transform",
+            isDragging && "scale-110 opacity-80"
+          )}
+          onClick={() => { if (!isDragging) setIsOpen(true); }}
+        >
+          <MessageSquare className="w-5 h-5" />
+        </div>
+        {messages.length > 0 && (
+          <span className="text-[10px] bg-destructive text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center absolute -top-1 -right-1">
+            {messages.filter(m => m.role === "assistant").length}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  // Expanded chat panel
   return (
-    <div className="flex flex-col h-full bg-background border-l border-border" style={{ width: 380 }}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+    <div
+      className="fixed right-4 z-50 flex flex-col bg-card border border-border rounded-2xl shadow-2xl overflow-hidden"
+      style={{
+        top: `${Math.min(position, 60)}%`,
+        transform: "translateY(-50%)",
+        width: 380,
+        height: "min(520px, 70vh)",
+      }}
+    >
+      {/* Header - draggable */}
+      <div
+        className={cn(
+          "flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/30 cursor-grab active:cursor-grabbing shrink-0",
+          isDragging && "opacity-80"
+        )}
+        onMouseDown={handleDragStart}
+        onTouchStart={handleDragStart}
+      >
         <div className="flex items-center gap-2">
           <Bot className="w-4 h-4 text-primary" />
           <span className="font-semibold text-sm text-foreground">AI 助手</span>
         </div>
-        <button onClick={onClose} className="p-1 rounded hover:bg-muted transition-colors">
-          <X className="w-4 h-4 text-muted-foreground" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setIsOpen(false)} className="p-1 rounded hover:bg-muted transition-colors" title="最小化">
+            <Minus className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
+          <button onClick={onClose} className="p-1 rounded hover:bg-muted transition-colors" title="关闭">
+            <X className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
+        </div>
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-3">
         {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3 py-12">
-            <MessageSquare className="w-10 h-10 text-primary/30" />
-            <p className="text-sm text-center">发送消息给 AI 助手<br />它会帮你整理内容并保存为笔记</p>
-            <div className="text-xs space-y-1 mt-2 text-muted-foreground/70">
-              <p>💡 试试说：「帮我整理今天的会议记录」</p>
-              <p>💡 或者：「把以下内容保存为笔记：...」</p>
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3 py-8">
+            <MessageSquare className="w-8 h-8 text-primary/30" />
+            <p className="text-xs text-center">发送消息给 AI 助手<br />它会理解你的意思并自动保存为笔记</p>
+            <div className="text-[11px] space-y-1 mt-1 text-muted-foreground/70">
+              <p>💡 「帮我整理今天的会议记录」</p>
+              <p>💡 「记住：明天下午3点开会」</p>
+              <p>💡 直接发送任何想法，AI 会帮你记录</p>
             </div>
           </div>
         )}
@@ -176,36 +269,37 @@ const AiChatPanel = ({ onSaveNote, onClose }: AiChatPanelProps) => {
         {messages.map((msg, i) => (
           <div key={i} className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
             {msg.role === "assistant" && (
-              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                <Bot className="w-3.5 h-3.5 text-primary" />
+              <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                <Bot className="w-3 h-3 text-primary" />
               </div>
             )}
             <div
-              className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
+              className={cn(
+                "max-w-[82%] rounded-xl px-3 py-2 text-sm leading-relaxed",
                 msg.role === "user"
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-foreground"
-              }`}
+              )}
             >
               {msg.role === "assistant" ? (
                 <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1">
                   <ReactMarkdown rehypePlugins={[rehypeRaw]}>{msg.content}</ReactMarkdown>
                 </div>
               ) : (
-                <p className="whitespace-pre-wrap">{msg.content}</p>
+                <p className="whitespace-pre-wrap text-[13px]">{msg.content}</p>
               )}
               {msg.role === "assistant" && msg.content && (
                 <button
                   onClick={() => handleManualSave(msg.content)}
-                  className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <Save className="w-3 h-3" /> 保存为笔记
                 </button>
               )}
             </div>
             {msg.role === "user" && (
-              <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0 mt-0.5">
-                <User className="w-3.5 h-3.5 text-primary-foreground" />
+              <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center shrink-0 mt-0.5">
+                <User className="w-3 h-3 text-primary-foreground" />
               </div>
             )}
           </div>
@@ -213,32 +307,31 @@ const AiChatPanel = ({ onSaveNote, onClose }: AiChatPanelProps) => {
 
         {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
           <div className="flex gap-2">
-            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-              <Bot className="w-3.5 h-3.5 text-primary" />
+            <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              <Bot className="w-3 h-3 text-primary" />
             </div>
-            <div className="bg-muted rounded-xl px-3.5 py-2.5">
-              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            <div className="bg-muted rounded-xl px-3 py-2">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
             </div>
           </div>
         )}
       </div>
 
       {/* Input */}
-      <div className="border-t border-border p-3">
+      <div className="border-t border-border p-2.5 shrink-0">
         <div className="flex items-end gap-2">
           <textarea
-            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
+            placeholder="输入消息... (Enter 发送)"
             rows={1}
-            className="flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-h-32"
-            style={{ minHeight: 38 }}
+            className="flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-h-24"
+            style={{ minHeight: 36 }}
             onInput={(e) => {
               const t = e.target as HTMLTextAreaElement;
-              t.style.height = "38px";
-              t.style.height = Math.min(t.scrollHeight, 128) + "px";
+              t.style.height = "36px";
+              t.style.height = Math.min(t.scrollHeight, 96) + "px";
             }}
           />
           <button
