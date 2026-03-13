@@ -31,6 +31,9 @@ const Workspace = () => {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
+  const [dragOverUnfoldered, setDragOverUnfoldered] = useState(false);
 
   const handlePageFontSizeChange = (size: number) => {
     setPageFontSize(size);
