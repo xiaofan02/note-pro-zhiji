@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,21 +9,32 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, saveAsNote, folderId } = await req.json();
+    const { messages } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const authHeader = req.headers.get("Authorization");
+    const systemPrompt = `你是一个智能笔记助手。你的核心职责是：理解用户发送的任何内容，给出有用的回复，并且**每次都自动将理解的内容整理成笔记保存**。
 
-    const systemPrompt = `你是一个智能笔记助手。用户会给你发送各种信息，你需要：
-1. 理解用户的意图并给出有用的回复
-2. 当用户要求保存或整理内容时，你会把内容整理成结构化的笔记格式（使用 HTML 标签如 <h2>、<ul>、<li>、<p>、<strong> 等）
-3. 当你整理好内容准备保存为笔记时，在回复的最后添加一个特殊标记：<!--SAVE_NOTE-->标题|||内容<!--/SAVE_NOTE-->
-   - 标题：简短的笔记标题
-   - 内容：整理好的 HTML 格式笔记内容
-4. 如果用户只是在聊天或提问，正常回复即可，不需要添加保存标记
-5. 用中文回复
-6. 保持回复简洁、有条理`;
+规则：
+1. 无论用户发什么（想法、问题、信息、会议记录、灵感等），你都要：
+   - 先给出简洁、有帮助的回复
+   - 然后**一定要**在回复末尾添加保存标记，将你理解的内容整理成结构化笔记
+2. 保存标记格式：<!--SAVE_NOTE-->标题|||内容<!--/SAVE_NOTE-->
+   - 标题：简短概括（5-15字）
+   - 内容：用 HTML 格式整理（使用 <h3>、<ul>、<li>、<p>、<strong>、<em> 等标签）
+3. 整理笔记时要：
+   - 提炼核心要点，去除冗余
+   - 补充你的理解和见解
+   - 结构清晰，方便日后查阅
+4. 用中文回复，保持简洁有条理
+5. 即使用户只是随口说一句话，也要整理保存——因为用户希望所有对话都被记录下来方便回忆
+
+示例：
+用户："明天下午3点和张总开会，讨论Q2预算"
+你的回复：
+好的，已记录。建议提前准备Q2各部门预算草案和去年同期数据作为参考。
+
+<!--SAVE_NOTE-->会议提醒：Q2预算讨论|||<h3>📅 会议安排</h3><ul><li><strong>时间：</strong>明天下午3:00</li><li><strong>参会人：</strong>张总</li><li><strong>议题：</strong>Q2预算讨论</li></ul><h3>💡 准备建议</h3><ul><li>各部门Q2预算草案</li><li>去年同期预算数据对比</li></ul><!--/SAVE_NOTE-->`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -58,7 +68,6 @@ serve(async (req) => {
       throw new Error("AI gateway error");
     }
 
-    // Stream the response back
     return new Response(response.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });

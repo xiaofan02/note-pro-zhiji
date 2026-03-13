@@ -603,23 +603,25 @@ const Workspace = () => {
               </div>
             )}
           </div>
-          {showAiChat && (
-            <AiChatPanel
-              onSaveNote={async (title, content) => {
-                if (!user) return;
-                const { data, error } = await supabase
-                  .from("notes")
-                  .insert({ user_id: user.id, title, content })
-                  .select("id, title, content, folder_id, created_at, updated_at")
-                  .single();
-                if (error) throw error;
-                refreshNotes();
-                if (data) setActiveNoteId(data.id);
-              }}
-              onClose={() => setShowAiChat(false)}
-            />
-          )}
         </main>
+
+        {/* Floating AI Chat Bubble */}
+        {showAiChat && (
+          <AiChatPanel
+            onSaveNote={async (title, content) => {
+              if (!user) return;
+              const { data, error } = await supabase
+                .from("notes")
+                .insert({ user_id: user.id, title, content })
+                .select("id, title, content, folder_id, created_at, updated_at")
+                .single();
+              if (error) throw error;
+              refreshNotes();
+              if (data) setActiveNoteId(data.id);
+            }}
+            onClose={() => setShowAiChat(false)}
+          />
+        )}
       </TooltipProvider>
     </div>
   );
