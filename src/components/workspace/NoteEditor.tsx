@@ -24,7 +24,26 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   const [aiLoading, setAiLoading] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
+  const voiceTextRef = useRef("");
   const { toast } = useToast();
+
+  const { isListening, isSupported: voiceSupported, start: startListening, stop: stopListening } = useSpeechRecognition({
+    onResult: (text) => {
+      const baseContent = voiceTextRef.current;
+      const newContent = baseContent ? baseContent + "\n" + text : text;
+      setContent(newContent);
+      debouncedSave(title, newContent);
+    },
+  });
+
+  const handleVoiceToggle = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      voiceTextRef.current = content;
+      startListening();
+    }
+  };
 
   useEffect(() => {
     setTitle(note.title);
