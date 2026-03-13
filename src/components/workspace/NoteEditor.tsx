@@ -298,6 +298,12 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
           type="text"
           value={title}
           onChange={(e) => handleTitleChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              editor?.commands.focus("start");
+            }
+          }}
           placeholder="笔记标题"
           className="w-full text-2xl font-bold bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/40"
         />
