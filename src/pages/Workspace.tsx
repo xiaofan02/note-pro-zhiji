@@ -423,10 +423,23 @@ const Workspace = () => {
                   );
                 })}
 
-                {/* Unfoldered notes */}
-                {unfolderedNotes.length > 0 && folders.length > 0 && (
-                  <div className="mt-2 pt-2 border-t border-border/50">
-                    <p className="text-[11px] text-muted-foreground/50 px-3 pb-1 font-medium">未分类</p>
+                {/* Unfoldered notes - drop target */}
+                {(unfolderedNotes.length > 0 || folders.length > 0) && (
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setDragOverUnfoldered(true); }}
+                    onDragLeave={() => setDragOverUnfoldered(false)}
+                    onDrop={handleDropOnUnfoldered}
+                    className={cn(
+                      "mt-2 pt-2 border-t border-border/50 rounded-lg transition-colors",
+                      dragOverUnfoldered && "bg-primary/10 ring-2 ring-primary/30"
+                    )}
+                  >
+                    <p
+                      className={cn("text-[11px] text-muted-foreground/50 px-3 pb-1 font-medium cursor-pointer hover:text-muted-foreground", activeFolderId === null && folders.length > 0 && "text-primary")}
+                      onClick={() => setActiveFolderId(null)}
+                    >
+                      未分类
+                    </p>
                   </div>
                 )}
                 {unfolderedNotes.map(renderNoteItem)}
