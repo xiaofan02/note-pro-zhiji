@@ -475,8 +475,9 @@ const Workspace = () => {
             </div>
           </div>
 
-          {/* Tags */}
+          {/* Tags - commented out for now
           <TagFilter tags={tags} selectedTagId={selectedTagId} onSelect={setSelectedTagId} />
+          */}
 
           {/* Action buttons */}
           <div className="px-3 pb-2 flex gap-2">
