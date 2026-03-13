@@ -1,6 +1,6 @@
 import { NodeViewContent, NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { Copy, Check, Play, Loader2, X, RotateCcw } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { runCode, isRunnable, type RunResult } from "@/lib/codeRunner";
 import { detectLanguage } from "@/lib/languageDetector";
 
