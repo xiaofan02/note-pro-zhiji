@@ -43,6 +43,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   const [aiLoading, setAiLoading] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const skipNextUpdate = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -81,16 +82,14 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
       Placeholder.configure({ placeholder: "开始写点什么吧..." }),
     ],
     content: note.content || "",
-    onUpdate: ({ editor: ed }) => {
-      const html = ed.getHTML();
-      debouncedSave(title, html);
-    },
   });
 
   useEffect(() => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
     setTitle(note.title);
     setSummary(null);
     if (editor && editor.getHTML() !== note.content) {
+      skipNextUpdate.current = true;
       editor.commands.setContent(note.content || "");
     }
   }, [note.id]);
@@ -101,6 +100,10 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   useEffect(() => {
     if (!editor) return;
     const handler = () => {
+      if (skipNextUpdate.current) {
+        skipNextUpdate.current = false;
+        return;
+      }
       const html = editor.getHTML();
       debouncedSave(titleRef.current, html);
     };
