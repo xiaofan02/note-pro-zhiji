@@ -7,6 +7,7 @@ import {
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { useNotes } from "@/hooks/useNotes";
 import { useTags } from "@/hooks/useTags";
 import { useFolders, Folder as FolderType } from "@/hooks/useFolders";
