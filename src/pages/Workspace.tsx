@@ -11,6 +11,7 @@ import { useNotes } from "@/hooks/useNotes";
 import { useTags } from "@/hooks/useTags";
 import { useFolders, Folder as FolderType } from "@/hooks/useFolders";
 import NoteEditor from "@/components/workspace/NoteEditor";
+import AiChatPanel from "@/components/workspace/AiChatPanel";
 import TagFilter from "@/components/workspace/TagFilter";
 import SettingsDialog from "@/components/workspace/SettingsDialog";
 import { cn } from "@/lib/utils";
