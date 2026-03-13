@@ -340,7 +340,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
                 prose-img:rounded-lg prose-img:max-w-full prose-img:shadow-sm
                 prose-hr:border-border
               ">
-                <ReactMarkdown>{content}</ReactMarkdown>
+                <ReactMarkdown rehypePlugins={[rehypeRaw]}>{content}</ReactMarkdown>
               </div>
             ) : (
               <p className="text-muted-foreground text-sm">暂无内容</p>
