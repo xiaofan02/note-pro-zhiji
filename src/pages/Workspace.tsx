@@ -375,18 +375,24 @@ const Workspace = () => {
                   const folderNotes = notesByFolder[folder.id] || [];
                   const isExpanded = expandedFolders.has(folder.id);
                   return (
-                    <div key={folder.id} className="mb-1">
-                      {/* Folder header - drop target */}
+                    <div
+                      key={folder.id}
+                      onDragOver={(e) => { e.preventDefault(); }}
+                      onDragEnter={(e) => handleFolderDragEnter(e, folder.id)}
+                      onDragLeave={(e) => handleFolderDragLeave(e, folder.id)}
+                      onDrop={(e) => handleDropOnFolder(e, folder.id)}
+                      className={cn(
+                        "mb-1 rounded-lg transition-colors",
+                        dragOverFolderId === folder.id && "bg-primary/10 ring-2 ring-primary/30"
+                      )}
+                    >
+                      {/* Folder header */}
                       <div
-                        onDragOver={(e) => { e.preventDefault(); }}
-                        onDragEnter={(e) => handleFolderDragEnter(e, folder.id)}
-                        onDragLeave={(e) => handleFolderDragLeave(e, folder.id)}
-                        onDrop={(e) => handleDropOnFolder(e, folder.id)}
                         onClick={() => setActiveFolderId(activeFolderId === folder.id ? null : folder.id)}
                         className={cn(
                           "group flex items-center gap-1 px-2 py-1.5 rounded-lg cursor-pointer transition-colors",
-                          dragOverFolderId === folder.id ? "bg-primary/15 ring-2 ring-primary/30" : "hover:bg-muted/60",
-                          activeFolderId === folder.id && "bg-accent"
+                          dragOverFolderId !== folder.id && "hover:bg-muted/60",
+                          activeFolderId === folder.id && dragOverFolderId !== folder.id && "bg-accent"
                         )}
                       >
                         <button onClick={() => toggleFolder(folder.id)} className="flex items-center gap-1.5 flex-1 min-w-0">
@@ -450,7 +456,7 @@ const Workspace = () => {
                       </div>
                       {/* Folder notes */}
                       {isExpanded && (
-                        <div className="ml-4 mt-0.5 space-y-0.5">
+                        <div className="ml-4 mt-0.5 space-y-0.5 min-h-[32px]">
                           {folderNotes.length === 0 && (
                             <p className="text-xs text-muted-foreground/50 py-2 pl-4">目录为空</p>
                           )}
