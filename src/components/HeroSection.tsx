@@ -29,7 +29,7 @@ const HeroSection = () => {
             智记 AI — 你的私人知识管理助手。用声音捕捉灵感，让 AI 自动整理、归纳和连接你的每一条笔记。
           </p>
           <div className="flex flex-col sm:flex-row items-start gap-4 pt-4">
-            <button onClick={() => navigate("/auth")} className="px-8 py-3.5 text-base font-semibold bg-foreground text-primary-foreground rounded-full hover:opacity-90 transition-opacity shadow-lg">
+            <button onClick={handleCta} className="px-8 py-3.5 text-base font-semibold bg-foreground text-primary-foreground rounded-full hover:opacity-90 transition-opacity shadow-lg">
               立即免费体验
             </button>
             <button className="px-8 py-3.5 text-base font-semibold border border-border text-foreground rounded-full hover:bg-muted transition-colors flex items-center gap-2">
