@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 const HeroSection = () => {
   const navigate = useNavigate();
+  const handleCta = () => navigate("/workspace");
   return (
     <section className="pt-28 pb-20 px-6">
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-12">
