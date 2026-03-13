@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 export interface Folder {
   id: string;
   name: string;
+  parent_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -20,7 +21,7 @@ export const useFolders = () => {
     if (!user) return;
     const { data, error } = await supabase
       .from("folders")
-      .select("id, name, created_at, updated_at")
+      .select("id, name, parent_id, created_at, updated_at")
       .order("created_at", { ascending: true });
 
     if (error) {
@@ -35,12 +36,12 @@ export const useFolders = () => {
     fetchFolders();
   }, [fetchFolders]);
 
-  const createFolder = async (name?: string) => {
+  const createFolder = async (name?: string, parentId?: string) => {
     if (!user) return;
     const { data, error } = await supabase
       .from("folders")
-      .insert({ user_id: user.id, name: name || "新建目录" })
-      .select("id, name, created_at, updated_at")
+      .insert({ user_id: user.id, name: name || "新建目录", parent_id: parentId || null })
+      .select("id, name, parent_id, created_at, updated_at")
       .single();
 
     if (error) {
@@ -65,7 +66,13 @@ export const useFolders = () => {
     if (error) {
       toast({ title: "删除目录失败", description: error.message, variant: "destructive" });
     } else {
-      setFolders((prev) => prev.filter((f) => f.id !== id));
+      // Remove the folder and all its descendants (cascade handles DB side)
+      const getAllDescendantIds = (folderId: string, allFolders: Folder[]): string[] => {
+        const children = allFolders.filter(f => f.parent_id === folderId);
+        return [folderId, ...children.flatMap(c => getAllDescendantIds(c.id, allFolders))];
+      };
+      const idsToRemove = new Set(getAllDescendantIds(id, folders));
+      setFolders((prev) => prev.filter((f) => !idsToRemove.has(f.id)));
     }
   };
 
@@ -77,5 +84,10 @@ export const useFolders = () => {
     return !error;
   };
 
-  return { folders, loading, createFolder, renameFolder, deleteFolder, moveNoteToFolder };
+  // Helper: get child folders of a given parent
+  const getChildFolders = useCallback((parentId: string | null) => {
+    return folders.filter(f => f.parent_id === parentId);
+  }, [folders]);
+
+  return { folders, loading, createFolder, renameFolder, deleteFolder, moveNoteToFolder, getChildFolders };
 };
