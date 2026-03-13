@@ -1,14 +1,28 @@
 import { NodeViewContent, NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { Copy, Check, Play, Loader2, X, RotateCcw } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { runCode, isRunnable, type RunResult } from "@/lib/codeRunner";
+import { detectLanguage } from "@/lib/languageDetector";
 
 const CodeBlockComponent = ({ node, updateAttributes, extension }: NodeViewProps) => {
   const [copied, setCopied] = useState(false);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
+  const [detectedLang, setDetectedLang] = useState("");
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const language = node.attrs.language || "";
+  const effectiveLang = language || detectedLang;
+
+  // Auto-detect language when no language is set
+  useEffect(() => {
+    if (!language) {
+      const timer = setTimeout(() => {
+        const detected = detectLanguage(node.textContent);
+        setDetectedLang(detected);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [language, node.textContent]);
 
   const handleCopy = () => {
     const text = node.textContent;
@@ -24,7 +38,7 @@ const CodeBlockComponent = ({ node, updateAttributes, extension }: NodeViewProps
     setRunning(true);
     setResult(null);
     try {
-      const res = await runCode(language, code);
+      const res = await runCode(effectiveLang, code);
       setResult(res);
     } catch (e: any) {
       setResult({ output: "", error: e.message });
@@ -32,7 +46,7 @@ const CodeBlockComponent = ({ node, updateAttributes, extension }: NodeViewProps
     setRunning(false);
   };
 
-  const canRun = isRunnable(language);
+  const canRun = isRunnable(effectiveLang);
 
   return (
     <NodeViewWrapper className="relative group my-2">
@@ -45,7 +59,7 @@ const CodeBlockComponent = ({ node, updateAttributes, extension }: NodeViewProps
             onChange={(e) => updateAttributes({ language: e.target.value })}
             className="bg-transparent outline-none cursor-pointer text-xs text-muted-foreground"
           >
-            <option value="">自动检测</option>
+            <option value="">{detectedLang ? `自动检测: ${detectedLang}` : "自动检测"}</option>
             {["javascript", "typescript", "python", "java", "c", "cpp", "csharp", "go", "rust", "ruby", "php", "swift", "kotlin", "html", "css", "sql", "bash", "json", "yaml", "xml", "markdown"].map((lang) => (
               <option key={lang} value={lang}>{lang}</option>
             ))}
