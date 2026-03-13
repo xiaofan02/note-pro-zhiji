@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
-  Sparkles, FileText, LogOut, Plus, Search, Trash2
+  Sparkles, FileText, LogOut, Plus, Search, Trash2, Moon, Sun
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotes } from "@/hooks/useNotes";
