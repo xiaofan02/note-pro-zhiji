@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import { useNavigate, Link } from "react-router-dom";
 import {
   Sparkles, FileText, LogOut, Plus, Search, Trash2, Moon, Sun, User,
-  FolderOpen, Folder, ChevronRight, ChevronDown, MoreHorizontal, FolderPlus, Edit2
+  FolderOpen, Folder, ChevronRight, ChevronDown, MoreHorizontal, FolderPlus, Edit2, Upload
 } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -15,6 +15,7 @@ import NoteEditor from "@/components/workspace/NoteEditor";
 import AiChatPanel from "@/components/workspace/AiChatPanel";
 import TagFilter from "@/components/workspace/TagFilter";
 import SettingsDialog from "@/components/workspace/SettingsDialog";
+import { useDocumentImport } from "@/hooks/useDocumentImport";
 import { cn } from "@/lib/utils";
 
 const Workspace = () => {
@@ -23,6 +24,8 @@ const Workspace = () => {
   const { notes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, refreshNotes } = useNotes();
   const { tags, noteTagsMap, createTag, addTagToNote, removeTagFromNote, getTagsForNote } = useTags();
   const { folders, createFolder, renameFolder, deleteFolder, moveNoteToFolder, getChildFolders } = useFolders();
+  const { importFile, acceptString } = useDocumentImport();
+  const importInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
@@ -181,6 +184,32 @@ const Workspace = () => {
     if (activeFolderId) {
       setExpandedFolders((prev) => new Set(prev).add(activeFolderId));
     }
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    const result = await importFile(file);
+    if (result) {
+      const { data, error } = await supabase
+        .from("notes")
+        .insert({
+          user_id: user.id,
+          title: result.title,
+          content: result.content,
+          folder_id: activeFolderId || null,
+        })
+        .select("id, title, content, folder_id, created_at, updated_at")
+        .single();
+      if (!error && data) {
+        await refreshNotes();
+        setActiveNoteId(data.id);
+        if (activeFolderId) {
+          setExpandedFolders((prev) => new Set(prev).add(activeFolderId));
+        }
+      }
+    }
+    e.target.value = "";
   };
 
   const filteredNotes = useMemo(() => {
@@ -469,7 +498,25 @@ const Workspace = () => {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs">新建目录</TooltipContent>
             </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => importInputRef.current?.click()}
+                  className="px-3 py-2 rounded-lg bg-accent text-accent-foreground text-sm font-medium hover:bg-accent/80 transition-colors"
+                >
+                  <Upload className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">导入文档</TooltipContent>
+            </Tooltip>
           </div>
+          <input
+            type="file"
+            ref={importInputRef}
+            className="hidden"
+            accept={acceptString}
+            onChange={handleImportFile}
+          />
 
           {/* Note list with folders */}
           <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
