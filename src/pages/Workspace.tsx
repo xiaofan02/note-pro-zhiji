@@ -339,8 +339,18 @@ const Workspace = () => {
                   const isExpanded = expandedFolders.has(folder.id);
                   return (
                     <div key={folder.id} className="mb-1">
-                      {/* Folder header */}
-                      <div className="group flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-muted/60 cursor-pointer transition-colors">
+                      {/* Folder header - drop target */}
+                      <div
+                        onDragOver={(e) => { e.preventDefault(); setDragOverFolderId(folder.id); }}
+                        onDragLeave={() => setDragOverFolderId(null)}
+                        onDrop={(e) => handleDropOnFolder(e, folder.id)}
+                        onClick={() => setActiveFolderId(activeFolderId === folder.id ? null : folder.id)}
+                        className={cn(
+                          "group flex items-center gap-1 px-2 py-1.5 rounded-lg cursor-pointer transition-colors",
+                          dragOverFolderId === folder.id ? "bg-primary/15 ring-2 ring-primary/30" : "hover:bg-muted/60",
+                          activeFolderId === folder.id && "bg-accent"
+                        )}
+                      >
                         <button onClick={() => toggleFolder(folder.id)} className="flex items-center gap-1.5 flex-1 min-w-0">
                           {isExpanded
                             ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
