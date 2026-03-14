@@ -606,6 +606,8 @@ const Workspace = () => {
               <SettingsDialog
                 pageFontSize={pageFontSize}
                 onPageFontSizeChange={handlePageFontSizeChange}
+                storageSettings={storageSettings}
+                onStorageSettingsChange={handleStorageSettingsChange}
               />
 
               <Tooltip>
