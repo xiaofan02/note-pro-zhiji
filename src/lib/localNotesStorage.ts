@@ -78,61 +78,63 @@ function idbTransaction(
 }
 
 // ─── Tauri Filesystem Helpers ───────────────────────────────────
+/* eslint-disable @typescript-eslint/no-explicit-any */
+async function getTauriFs(): Promise<any> {
+  try {
+    return await (Function('return import("@tauri-apps/plugin-fs")')() as Promise<any>);
+  } catch { return null; }
+}
+
+async function getTauriDialog(): Promise<any> {
+  try {
+    return await (Function('return import("@tauri-apps/plugin-dialog")')() as Promise<any>);
+  } catch { return null; }
+}
+
 async function tauriWriteNote(localPath: string, note: Note & { user_id?: string }) {
   if (!isTauri()) return;
+  const fs = await getTauriFs();
+  if (!fs) return;
   try {
-    const { writeTextFile, mkdir } = await import("@tauri-apps/plugin-fs");
-    await mkdir(localPath, { recursive: true }).catch(() => {});
-    const filePath = `${localPath}/${note.id}.json`;
-    await writeTextFile(filePath, JSON.stringify(note, null, 2));
-  } catch (e) {
-    console.error("Tauri write failed:", e);
-  }
+    await fs.mkdir(localPath, { recursive: true }).catch(() => {});
+    await fs.writeTextFile(`${localPath}/${note.id}.json`, JSON.stringify(note, null, 2));
+  } catch (e) { console.error("Tauri write failed:", e); }
 }
 
 async function tauriReadAllNotes(localPath: string): Promise<Note[]> {
   if (!isTauri() || !localPath) return [];
+  const fs = await getTauriFs();
+  if (!fs) return [];
   try {
-    const { readDir, readTextFile } = await import("@tauri-apps/plugin-fs");
-    const entries = await readDir(localPath);
+    const entries = await fs.readDir(localPath);
     const notes: Note[] = [];
     for (const entry of entries) {
       if (entry.name?.endsWith(".json")) {
         try {
-          const content = await readTextFile(`${localPath}/${entry.name}`);
+          const content = await fs.readTextFile(`${localPath}/${entry.name}`);
           notes.push(JSON.parse(content));
         } catch {}
       }
     }
-    return notes.sort(
-      (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-    );
-  } catch (e) {
-    console.error("Tauri read failed:", e);
-    return [];
-  }
+    return notes.sort((a: Note, b: Note) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+  } catch (e) { console.error("Tauri read failed:", e); return []; }
 }
 
 async function tauriDeleteNote(localPath: string, noteId: string) {
   if (!isTauri()) return;
-  try {
-    const { remove } = await import("@tauri-apps/plugin-fs");
-    await remove(`${localPath}/${noteId}.json`);
-  } catch (e) {
-    console.error("Tauri delete failed:", e);
-  }
+  const fs = await getTauriFs();
+  if (!fs) return;
+  try { await fs.remove(`${localPath}/${noteId}.json`); } catch (e) { console.error("Tauri delete failed:", e); }
 }
 
 async function tauriPickDirectory(): Promise<string | null> {
   if (!isTauri()) return null;
+  const dialog = await getTauriDialog();
+  if (!dialog) return null;
   try {
-    const { open } = await import("@tauri-apps/plugin-dialog");
-    const selected = await open({ directory: true, multiple: false, title: "选择笔记保存目录" });
+    const selected = await dialog.open({ directory: true, multiple: false, title: "选择笔记保存目录" });
     return typeof selected === "string" ? selected : null;
-  } catch (e) {
-    console.error("Tauri dialog failed:", e);
-    return null;
-  }
+  } catch (e) { console.error("Tauri dialog failed:", e); return null; }
 }
 
 // ─── Unified Local Storage API ──────────────────────────────────
