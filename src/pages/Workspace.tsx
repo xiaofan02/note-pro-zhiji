@@ -1,29 +1,32 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
-  Sparkles, FileText, LogOut, Plus, Search, Trash2, Moon, Sun, User,
-  FolderOpen, Folder, ChevronRight, ChevronDown, MoreHorizontal, FolderPlus, Edit2, Upload, ArrowLeftRight
+  Sparkles, FileText, LogOut, Plus, Search, Moon, Sun, User,
+  FolderPlus, Upload, ArrowLeftRight,
 } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import DataMigration from "@/components/workspace/DataMigration";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useNotes } from "@/hooks/useNotes";
 import { useTags } from "@/hooks/useTags";
-import { useFolders, Folder as FolderType } from "@/hooks/useFolders";
+import { useFolders } from "@/hooks/useFolders";
 import NoteEditor from "@/components/workspace/NoteEditor";
 import AiChatPanel from "@/components/workspace/AiChatPanel";
-import TagFilter from "@/components/workspace/TagFilter";
 import SettingsDialog from "@/components/workspace/SettingsDialog";
+import SidebarNoteItem from "@/components/workspace/SidebarNoteItem";
+import SidebarFolderTree from "@/components/workspace/SidebarFolderTree";
+import WorkspaceEmptyState from "@/components/workspace/WorkspaceEmptyState";
 import { useDocumentImport } from "@/hooks/useDocumentImport";
 import { getStorageSettings, setStorageSettings, StorageSettings, localNotesStorage } from "@/lib/localNotesStorage";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 const Workspace = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [storageSettings, setStorageSettingsState] = useState<StorageSettings>(getStorageSettings);
   const { notes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, refreshNotes } = useNotes(storageSettings);
   const { tags, noteTagsMap, createTag, addTagToNote, removeTagFromNote, getTagsForNote } = useTags();
@@ -43,25 +46,26 @@ const Workspace = () => {
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const [dragOverUnfoldered, setDragOverUnfoldered] = useState(false);
-  const [showAiChat, setShowAiChat] = useState(true);
   const dragCounterRef = useRef<Record<string, number>>({});
 
-  const handlePageFontSizeChange = (size: number) => {
+  // ─── Handlers ──────────────────────────────────────────────────
+
+  const handlePageFontSizeChange = useCallback((size: number) => {
     setPageFontSize(size);
     localStorage.setItem("noteFontSize", String(size));
-  };
+  }, []);
 
-  const handleStorageSettingsChange = (settings: StorageSettings) => {
+  const handleStorageSettingsChange = useCallback((settings: StorageSettings) => {
     setStorageSettingsState(settings);
     setStorageSettings(settings);
-  };
+  }, []);
 
-  const toggleDarkMode = () => {
+  const toggleDarkMode = useCallback(() => {
     const next = !isDark;
     setIsDark(next);
     document.documentElement.classList.toggle("dark", next);
     localStorage.setItem("theme", next ? "dark" : "light");
-  };
+  }, [isDark]);
 
   useEffect(() => {
     const saved = localStorage.getItem("theme");
@@ -75,21 +79,20 @@ const Workspace = () => {
     if (!authLoading && !user) navigate("/auth");
   }, [user, authLoading, navigate]);
 
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     await signOut();
     navigate("/");
-  };
+  }, [signOut, navigate]);
 
-  const toggleFolder = (folderId: string) => {
+  const toggleFolder = useCallback((folderId: string) => {
     setExpandedFolders((prev) => {
       const next = new Set(prev);
-      if (next.has(folderId)) next.delete(folderId);
-      else next.add(folderId);
+      if (next.has(folderId)) next.delete(folderId); else next.add(folderId);
       return next;
     });
-  };
+  }, []);
 
-  const handleCreateFolder = async (parentId?: string) => {
+  const handleCreateFolder = useCallback(async (parentId?: string) => {
     const folder = await createFolder(undefined, parentId);
     if (folder) {
       setExpandedFolders((prev) => {
@@ -101,50 +104,46 @@ const Workspace = () => {
       setRenamingFolderId(folder.id);
       setRenameValue(folder.name);
     }
-  };
+  }, [createFolder]);
 
-  const handleRenameSubmit = async (folderId: string) => {
-    if (renameValue.trim()) {
-      await renameFolder(folderId, renameValue.trim());
-    }
+  const handleRenameSubmit = useCallback(async (folderId: string) => {
+    if (renameValue.trim()) await renameFolder(folderId, renameValue.trim());
     setRenamingFolderId(null);
-  };
+  }, [renameValue, renameFolder]);
 
-  const handleDeleteFolder = async (folderId: string) => {
+  const handleDeleteFolder = useCallback(async (folderId: string) => {
     await deleteFolder(folderId);
     await refreshNotes();
-  };
+    toast({ title: "已删除目录" });
+  }, [deleteFolder, refreshNotes, toast]);
 
-  const handleCreateNoteInFolder = async (folderId: string) => {
+  const handleCreateNoteInFolder = useCallback(async (folderId: string) => {
     await createNote(folderId);
     setExpandedFolders((prev) => new Set(prev).add(folderId));
-  };
+  }, [createNote]);
 
-  const handleMoveNote = async (noteId: string, folderId: string | null) => {
+  const handleMoveNote = useCallback(async (noteId: string, folderId: string | null) => {
     if (storageSettings.mode === "local") {
       const target = notes.find((n) => n.id === noteId);
       if (!target) return;
-      const updated = {
-        ...target,
-        folder_id: folderId,
-        updated_at: new Date().toISOString(),
-      };
+      const updated = { ...target, folder_id: folderId, updated_at: new Date().toISOString() };
       await localNotesStorage.save(updated, storageSettings.localPath);
       await refreshNotes();
-      return;
+    } else {
+      const ok = await moveNoteToFolder(noteId, folderId);
+      if (ok) await refreshNotes();
     }
-
-    const ok = await moveNoteToFolder(noteId, folderId);
-    if (ok) await refreshNotes();
-  };
+    const folderName = folderId ? folders.find(f => f.id === folderId)?.name : "未分类";
+    toast({ title: "已移动", description: `笔记已移至「${folderName}」` });
+  }, [storageSettings, notes, refreshNotes, moveNoteToFolder, folders, toast]);
 
   // Drag & drop handlers
-  const handleDragStart = (e: React.DragEvent, noteId: string) => {
+  const handleDragStart = useCallback((e: React.DragEvent, noteId: string) => {
     e.dataTransfer.setData("text/plain", noteId);
     e.dataTransfer.effectAllowed = "move";
-  };
+  }, []);
 
-  const handleDropOnFolder = async (e: React.DragEvent, folderId: string) => {
+  const handleDropOnFolder = useCallback(async (e: React.DragEvent, folderId: string) => {
     e.preventDefault();
     e.stopPropagation();
     dragCounterRef.current[folderId] = 0;
@@ -154,16 +153,16 @@ const Workspace = () => {
       await handleMoveNote(noteId, folderId);
       setExpandedFolders((prev) => new Set(prev).add(folderId));
     }
-  };
+  }, [handleMoveNote]);
 
-  const handleFolderDragEnter = (e: React.DragEvent, folderId: string) => {
+  const handleFolderDragEnter = useCallback((e: React.DragEvent, folderId: string) => {
     e.preventDefault();
     e.stopPropagation();
     dragCounterRef.current[folderId] = (dragCounterRef.current[folderId] || 0) + 1;
     setDragOverFolderId(folderId);
-  };
+  }, []);
 
-  const handleFolderDragLeave = (e: React.DragEvent, folderId: string) => {
+  const handleFolderDragLeave = useCallback((e: React.DragEvent, folderId: string) => {
     e.preventDefault();
     e.stopPropagation();
     dragCounterRef.current[folderId] = (dragCounterRef.current[folderId] || 0) - 1;
@@ -171,27 +170,25 @@ const Workspace = () => {
       dragCounterRef.current[folderId] = 0;
       setDragOverFolderId(null);
     }
-  };
+  }, []);
 
-  const handleDropOnUnfoldered = async (e: React.DragEvent) => {
+  const handleDropOnUnfoldered = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     dragCounterRef.current["__unfoldered"] = 0;
     setDragOverUnfoldered(false);
     const noteId = e.dataTransfer.getData("text/plain");
-    if (noteId) {
-      await handleMoveNote(noteId, null);
-    }
-  };
+    if (noteId) await handleMoveNote(noteId, null);
+  }, [handleMoveNote]);
 
-  const handleUnfolderedDragEnter = (e: React.DragEvent) => {
+  const handleUnfolderedDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     dragCounterRef.current["__unfoldered"] = (dragCounterRef.current["__unfoldered"] || 0) + 1;
     setDragOverUnfoldered(true);
-  };
+  }, []);
 
-  const handleUnfolderedDragLeave = (e: React.DragEvent) => {
+  const handleUnfolderedDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     dragCounterRef.current["__unfoldered"] = (dragCounterRef.current["__unfoldered"] || 0) - 1;
@@ -199,16 +196,19 @@ const Workspace = () => {
       dragCounterRef.current["__unfoldered"] = 0;
       setDragOverUnfoldered(false);
     }
-  };
+  }, []);
 
-  const handleNewNote = () => {
+  const handleNewNote = useCallback(() => {
     createNote(activeFolderId || undefined);
-    if (activeFolderId) {
-      setExpandedFolders((prev) => new Set(prev).add(activeFolderId));
-    }
-  };
+    if (activeFolderId) setExpandedFolders((prev) => new Set(prev).add(activeFolderId));
+  }, [createNote, activeFolderId]);
 
-  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSelectNote = useCallback((id: string, folderId: string | null) => {
+    setActiveNoteId(id);
+    setActiveFolderId(folderId);
+  }, [setActiveNoteId]);
+
+  const handleImportFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
     const result = await importFile(file);
@@ -216,12 +216,8 @@ const Workspace = () => {
       if (storageSettings.mode === "local") {
         const now = new Date().toISOString();
         const note = {
-          id: crypto.randomUUID(),
-          title: result.title,
-          content: result.content,
-          folder_id: activeFolderId || null,
-          created_at: now,
-          updated_at: now,
+          id: crypto.randomUUID(), title: result.title, content: result.content,
+          folder_id: activeFolderId || null, created_at: now, updated_at: now,
         };
         await localNotesStorage.save(note, storageSettings.localPath);
         await refreshNotes();
@@ -229,42 +225,31 @@ const Workspace = () => {
       } else {
         const { data, error } = await supabase
           .from("notes")
-          .insert({
-            user_id: user.id,
-            title: result.title,
-            content: result.content,
-            folder_id: activeFolderId || null,
-          })
+          .insert({ user_id: user.id, title: result.title, content: result.content, folder_id: activeFolderId || null })
           .select("id, title, content, folder_id, created_at, updated_at")
           .single();
-        if (!error && data) {
-          await refreshNotes();
-          setActiveNoteId(data.id);
-        }
+        if (!error && data) { await refreshNotes(); setActiveNoteId(data.id); }
       }
-      if (activeFolderId) {
-        setExpandedFolders((prev) => new Set(prev).add(activeFolderId));
-      }
+      if (activeFolderId) setExpandedFolders((prev) => new Set(prev).add(activeFolderId));
+      toast({ title: "导入成功", description: `已导入「${result.title}」` });
     }
     e.target.value = "";
-  };
+  }, [user, importFile, storageSettings, activeFolderId, refreshNotes, setActiveNoteId, toast]);
+
+  // ─── Computed ──────────────────────────────────────────────────
 
   const filteredNotes = useMemo(() => {
     let result = notes;
-    if (selectedTagId) {
-      result = result.filter((n) => (noteTagsMap[n.id] || []).includes(selectedTagId));
-    }
+    if (selectedTagId) result = result.filter((n) => (noteTagsMap[n.id] || []).includes(selectedTagId));
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (n) => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q)
-      );
+      result = result.filter((n) => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q));
     }
     return result;
   }, [notes, searchQuery, selectedTagId, noteTagsMap]);
 
-  // Group notes by folder
-  const unfolderedNotes = filteredNotes.filter((n) => !n.folder_id);
+  const unfolderedNotes = useMemo(() => filteredNotes.filter((n) => !n.folder_id), [filteredNotes]);
+
   const notesByFolder = useMemo(() => {
     const map: Record<string, typeof filteredNotes> = {};
     for (const note of filteredNotes) {
@@ -277,213 +262,24 @@ const Workspace = () => {
   }, [filteredNotes]);
 
   const isSearching = !!(searchQuery || selectedTagId);
-
-  const renderNoteItem = (note: typeof notes[0]) => {
-    const noteTags = getTagsForNote(note.id);
-    const isActive = activeNoteId === note.id;
-    return (
-      <div
-        key={note.id}
-        draggable
-        onDragStart={(e) => handleDragStart(e, note.id)}
-        onClick={() => { setActiveNoteId(note.id); setActiveFolderId(note.folder_id); }}
-        className={cn(
-          "group flex items-start gap-2.5 p-3 rounded-lg cursor-grab transition-all active:cursor-grabbing",
-          isActive
-            ? "bg-accent text-accent-foreground shadow-sm"
-            : "hover:bg-muted/60 text-foreground"
-        )}
-      >
-        <div className={cn(
-          "w-1 h-8 rounded-full shrink-0 mt-0.5 transition-colors",
-          isActive ? "bg-primary" : "bg-transparent"
-        )} />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">
-            {note.title || "无标题笔记"}
-          </p>
-          <p className="text-xs text-muted-foreground truncate mt-0.5 leading-relaxed">
-            {note.content?.replace(/<[^>]*>/g, "").slice(0, 60) || "空笔记"}
-          </p>
-          {/* Tags on notes - commented out for now
-          {noteTags.length > 0 && (
-            <div className="flex gap-1 mt-1.5 flex-wrap">
-              {noteTags.map((tag) => (
-                <span
-                  key={tag.id}
-                  className="px-1.5 py-0 rounded text-[10px] text-white"
-                  style={{ backgroundColor: tag.color }}
-                >
-                  {tag.name}
-                </span>
-              ))}
-            </div>
-          )}
-          */}
-          <p className="text-[11px] text-muted-foreground/50 mt-1">
-            {new Date(note.updated_at).toLocaleDateString("zh-CN")}
-          </p>
-        </div>
-        <div className="flex items-center gap-0.5 shrink-0">
-          {folders.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  onClick={(e) => e.stopPropagation()}
-                  className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
-                  title="移动到目录"
-                >
-                  <FolderOpen className="w-3.5 h-3.5" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[140px]">
-                {note.folder_id && (
-                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveNote(note.id, null); }}>
-                    <FileText className="w-3.5 h-3.5 mr-2" />
-                    移出目录
-                  </DropdownMenuItem>
-                )}
-                {folders.filter(f => f.id !== note.folder_id).map((folder) => (
-                  <DropdownMenuItem key={folder.id} onClick={(e) => { e.stopPropagation(); handleMoveNote(note.id, folder.id); }}>
-                    <Folder className="w-3.5 h-3.5 mr-2" />
-                    {folder.name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              deleteNote(note.id);
-            }}
-            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all shrink-0"
-            title="删除"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  // Recursive folder renderer
-  const renderFolder = (folder: FolderType, depth: number = 0) => {
-    const folderNotes = notesByFolder[folder.id] || [];
-    const childFolders = getChildFolders(folder.id);
-    const isExpanded = expandedFolders.has(folder.id);
-    const totalNotes = folderNotes.length;
-
-    return (
-      <div
-        key={folder.id}
-        onDragOver={(e) => { e.preventDefault(); }}
-        onDragEnter={(e) => handleFolderDragEnter(e, folder.id)}
-        onDragLeave={(e) => handleFolderDragLeave(e, folder.id)}
-        onDrop={(e) => handleDropOnFolder(e, folder.id)}
-        className={cn(
-          "mb-0.5 rounded-lg transition-colors",
-          dragOverFolderId === folder.id && "bg-primary/10 ring-2 ring-primary/30"
-        )}
-      >
-        {/* Folder header */}
-        <div
-          onClick={() => setActiveFolderId(activeFolderId === folder.id ? null : folder.id)}
-          className={cn(
-            "group flex items-center gap-1 px-2 py-1.5 rounded-lg cursor-pointer transition-colors",
-            dragOverFolderId !== folder.id && "hover:bg-muted/60",
-            activeFolderId === folder.id && dragOverFolderId !== folder.id && "bg-accent"
-          )}
-          style={{ paddingLeft: `${8 + depth * 12}px` }}
-        >
-          <button onClick={(e) => { e.stopPropagation(); setActiveFolderId(folder.id); toggleFolder(folder.id); }} className="flex items-center gap-1.5 flex-1 min-w-0">
-            {isExpanded
-              ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-              : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            }
-            <FolderOpen className={cn("w-4 h-4 shrink-0", isExpanded ? "text-primary" : "text-muted-foreground")} />
-            {renamingFolderId === folder.id ? (
-              <input
-                autoFocus
-                value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
-                onBlur={() => handleRenameSubmit(folder.id)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleRenameSubmit(folder.id);
-                  if (e.key === "Escape") setRenamingFolderId(null);
-                }}
-                onClick={(e) => e.stopPropagation()}
-                className="flex-1 min-w-0 text-sm bg-transparent border-b border-primary outline-none text-foreground"
-              />
-            ) : (
-              <span className="text-sm font-medium text-foreground truncate">{folder.name}</span>
-            )}
-            <span className="text-[11px] text-muted-foreground/50 ml-1">{totalNotes}</span>
-          </button>
-          <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleCreateNoteInFolder(folder.id); }}
-                  className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
-                >
-                  <Plus className="w-3 h-3" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs">在此目录新建笔记</TooltipContent>
-            </Tooltip>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  onClick={(e) => e.stopPropagation()}
-                  className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
-                >
-                  <MoreHorizontal className="w-3 h-3" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[120px]">
-                <DropdownMenuItem onClick={() => handleCreateFolder(folder.id)}>
-                  <FolderPlus className="w-3.5 h-3.5 mr-2" /> 新建子目录
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { setRenamingFolderId(folder.id); setRenameValue(folder.name); }}>
-                  <Edit2 className="w-3.5 h-3.5 mr-2" /> 重命名
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleDeleteFolder(folder.id)}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash2 className="w-3.5 h-3.5 mr-2" /> 删除目录
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-        {/* Folder contents */}
-        {isExpanded && (
-          <div className="ml-3 mt-0.5 space-y-0.5 min-h-[32px]">
-            {/* Child folders */}
-            {childFolders.map((child) => renderFolder(child, depth + 1))}
-            {/* Notes in this folder */}
-            {folderNotes.map(renderNoteItem)}
-            {folderNotes.length === 0 && childFolders.length === 0 && (
-              <p className="text-xs text-muted-foreground/50 py-2 pl-4">目录为空</p>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // Get root-level folders (no parent)
   const rootFolders = useMemo(() => getChildFolders(null), [getChildFolders]);
+
+  // ─── Loading state ─────────────────────────────────────────────
 
   if (authLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse text-muted-foreground">加载中...</div>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center animate-pulse shadow-sm">
+            <Sparkles className="w-5 h-5 text-primary-foreground" />
+          </div>
+          <p className="text-sm text-muted-foreground animate-pulse">加载中...</p>
+        </div>
       </div>
     );
   }
+
+  // ─── Render ────────────────────────────────────────────────────
 
   return (
     <div className="h-screen flex bg-background" style={{ '--page-font-scale': pageFontSize / 15 } as React.CSSProperties}>
@@ -492,8 +288,8 @@ const Workspace = () => {
         <aside className="w-72 border-r border-border bg-card flex flex-col h-full shrink-0">
           {/* Logo */}
           <div className="h-13 border-b border-border flex items-center px-5 shrink-0">
-            <Link to="/" className="flex items-center gap-2.5">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
+            <Link to="/" className="flex items-center gap-2.5 group">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
                 <Sparkles className="w-4 h-4 text-primary-foreground" />
               </div>
               <span className="text-sm font-bold text-foreground tracking-tight">智记 AI</span>
@@ -514,25 +310,18 @@ const Workspace = () => {
             </div>
           </div>
 
-          {/* Tags - commented out for now
-          <TagFilter tags={tags} selectedTagId={selectedTagId} onSelect={setSelectedTagId} />
-          */}
-
           {/* Action buttons */}
-          <div className="px-3 pb-2 flex gap-2">
+          <div className="px-3 pb-2 flex gap-1.5">
             <button
               onClick={handleNewNote}
               className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity shadow-sm"
             >
               <Plus className="w-4 h-4" />
-              新建笔记{activeFolderId ? ` (${folders.find(f => f.id === activeFolderId)?.name})` : ""}
+              新建{activeFolderId ? ` (${folders.find(f => f.id === activeFolderId)?.name?.slice(0, 4)})` : "笔记"}
             </button>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
-                  onClick={() => handleCreateFolder()}
-                  className="px-3 py-2 rounded-lg bg-accent text-accent-foreground text-sm font-medium hover:bg-accent/80 transition-colors"
-                >
+                <button onClick={() => handleCreateFolder()} className="px-2.5 py-2 rounded-lg bg-accent text-accent-foreground hover:bg-accent/80 transition-colors">
                   <FolderPlus className="w-4 h-4" />
                 </button>
               </TooltipTrigger>
@@ -540,10 +329,7 @@ const Workspace = () => {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
-                  onClick={() => importInputRef.current?.click()}
-                  className="px-3 py-2 rounded-lg bg-accent text-accent-foreground text-sm font-medium hover:bg-accent/80 transition-colors"
-                >
+                <button onClick={() => importInputRef.current?.click()} className="px-2.5 py-2 rounded-lg bg-accent text-accent-foreground hover:bg-accent/80 transition-colors">
                   <Upload className="w-4 h-4" />
                 </button>
               </TooltipTrigger>
@@ -553,7 +339,7 @@ const Workspace = () => {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <SheetTrigger asChild>
-                    <button className="px-3 py-2 rounded-lg bg-accent text-accent-foreground text-sm font-medium hover:bg-accent/80 transition-colors">
+                    <button className="px-2.5 py-2 rounded-lg bg-accent text-accent-foreground hover:bg-accent/80 transition-colors">
                       <ArrowLeftRight className="w-4 h-4" />
                     </button>
                   </SheetTrigger>
@@ -570,21 +356,19 @@ const Workspace = () => {
               </SheetContent>
             </Sheet>
           </div>
-          <input
-            type="file"
-            ref={importInputRef}
-            className="hidden"
-            accept={acceptString}
-            onChange={handleImportFile}
-          />
+          <input type="file" ref={importInputRef} className="hidden" accept={acceptString} onChange={handleImportFile} />
 
           {/* Note list with folders */}
           <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
             {loading && (
-              <p className="text-sm text-muted-foreground text-center py-8">加载中...</p>
+              <div className="flex flex-col gap-2 py-4 px-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-16 rounded-lg bg-muted/40 animate-pulse" />
+                ))}
+              </div>
             )}
             {!loading && filteredNotes.length === 0 && (
-              <div className="text-center py-12 px-4">
+              <div className="text-center py-12 px-4 animate-in fade-in-50 duration-300">
                 <FileText className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
                 <p className="text-sm text-muted-foreground">
                   {isSearching ? "未找到匹配的笔记" : "还没有笔记，点击上方按钮创建"}
@@ -594,28 +378,70 @@ const Workspace = () => {
 
             {!loading && !isSearching && (
               <>
-                {/* Folders - only root level, children rendered recursively */}
-                {rootFolders.map((folder) => renderFolder(folder))}
+                {rootFolders.map((folder) => (
+                  <SidebarFolderTree
+                    key={folder.id}
+                    folder={folder}
+                    notesByFolder={notesByFolder}
+                    getChildFolders={getChildFolders}
+                    expandedFolders={expandedFolders}
+                    activeFolderId={activeFolderId}
+                    activeNoteId={activeNoteId}
+                    dragOverFolderId={dragOverFolderId}
+                    renamingFolderId={renamingFolderId}
+                    renameValue={renameValue}
+                    folders={folders}
+                    onToggleFolder={toggleFolder}
+                    onSetActiveFolder={setActiveFolderId}
+                    onRenameValueChange={setRenameValue}
+                    onRenameSubmit={handleRenameSubmit}
+                    onStartRename={(id, name) => { setRenamingFolderId(id); setRenameValue(name); }}
+                    onCancelRename={() => setRenamingFolderId(null)}
+                    onCreateNoteInFolder={handleCreateNoteInFolder}
+                    onCreateSubfolder={handleCreateFolder}
+                    onDeleteFolder={handleDeleteFolder}
+                    onSelectNote={handleSelectNote}
+                    onDeleteNote={deleteNote}
+                    onMoveNote={handleMoveNote}
+                    onDragStart={handleDragStart}
+                    onFolderDragEnter={handleFolderDragEnter}
+                    onFolderDragLeave={handleFolderDragLeave}
+                    onDropOnFolder={handleDropOnFolder}
+                  />
+                ))}
 
-                {/* Unfoldered notes - drop target */}
                 {(unfolderedNotes.length > 0 || folders.length > 0) && (
                   <div
-                    onDragOver={(e) => { e.preventDefault(); }}
+                    onDragOver={(e) => e.preventDefault()}
                     onDragEnter={handleUnfolderedDragEnter}
                     onDragLeave={handleUnfolderedDragLeave}
                     onDrop={handleDropOnUnfoldered}
                     className={cn(
-                      "mt-2 pt-2 border-t border-border/50 rounded-lg transition-colors",
+                      "mt-2 pt-2 border-t border-border/50 rounded-lg transition-colors duration-200",
                       dragOverUnfoldered && "bg-primary/10 ring-2 ring-primary/30"
                     )}
                   >
                     <p
-                      className={cn("text-[11px] text-muted-foreground/50 px-3 pb-1 font-medium cursor-pointer hover:text-muted-foreground", activeFolderId === null && folders.length > 0 && "text-primary")}
+                      className={cn(
+                        "text-[11px] text-muted-foreground/50 px-3 pb-1 font-medium cursor-pointer hover:text-muted-foreground transition-colors",
+                        activeFolderId === null && folders.length > 0 && "text-primary"
+                      )}
                       onClick={() => setActiveFolderId(null)}
                     >
                       未分类
                     </p>
-                    {unfolderedNotes.map(renderNoteItem)}
+                    {unfolderedNotes.map((note) => (
+                      <SidebarNoteItem
+                        key={note.id}
+                        note={note}
+                        isActive={activeNoteId === note.id}
+                        folders={folders}
+                        onSelect={handleSelectNote}
+                        onDelete={deleteNote}
+                        onMove={handleMoveNote}
+                        onDragStart={handleDragStart}
+                      />
+                    ))}
                     {unfolderedNotes.length === 0 && (
                       <p className="text-xs text-muted-foreground/50 py-2 pl-4">无未分类笔记</p>
                     )}
@@ -624,8 +450,18 @@ const Workspace = () => {
               </>
             )}
 
-            {/* When searching, show flat list */}
-            {!loading && isSearching && filteredNotes.map(renderNoteItem)}
+            {!loading && isSearching && filteredNotes.map((note) => (
+              <SidebarNoteItem
+                key={note.id}
+                note={note}
+                isActive={activeNoteId === note.id}
+                folders={folders}
+                onSelect={handleSelectNote}
+                onDelete={deleteNote}
+                onMove={handleMoveNote}
+                onDragStart={handleDragStart}
+              />
+            ))}
           </div>
 
           {/* Bottom: user info + actions */}
@@ -641,18 +477,12 @@ const Workspace = () => {
             <div className="flex items-center gap-1">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
-                    onClick={toggleDarkMode}
-                    className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                  >
+                  <button onClick={toggleDarkMode} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                     {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="right" className="text-xs">
-                  {isDark ? "切换到浅色模式" : "切换到深色模式"}
-                </TooltipContent>
+                <TooltipContent side="right" className="text-xs">{isDark ? "切换到浅色模式" : "切换到深色模式"}</TooltipContent>
               </Tooltip>
-
               <SettingsDialog
                 pageFontSize={pageFontSize}
                 onPageFontSizeChange={handlePageFontSizeChange}
@@ -660,13 +490,9 @@ const Workspace = () => {
                 onStorageSettingsChange={handleStorageSettingsChange}
                 onMigrationComplete={refreshNotes}
               />
-
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
-                    onClick={handleSignOut}
-                    className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                  >
+                  <button onClick={handleSignOut} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                     <LogOut className="w-4 h-4" />
                   </button>
                 </TooltipTrigger>
@@ -691,19 +517,9 @@ const Workspace = () => {
                 pageFontSize={pageFontSize}
               />
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-5">
-                <div className="w-20 h-20 rounded-2xl bg-accent flex items-center justify-center">
-                  <FileText className="w-8 h-8 text-primary/60" />
-                </div>
-                <div className="text-center space-y-1.5">
-                  <p className="font-semibold text-foreground text-lg">选择或创建一条笔记</p>
-                  <p className="text-sm">从左侧列表选择笔记，或点击「新建笔记」开始记录</p>
-                </div>
-              </div>
+              <WorkspaceEmptyState onCreateNote={handleNewNote} />
             )}
           </div>
-
-          {/* AI Chat Panel */}
           <AiChatPanel
             onSaveNote={async (title, content) => {
               if (!user) return;
