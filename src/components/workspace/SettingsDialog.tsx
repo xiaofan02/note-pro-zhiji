@@ -28,6 +28,7 @@ interface SettingsDialogProps {
   onPageFontSizeChange: (size: number) => void;
   storageSettings: StorageSettings;
   onStorageSettingsChange: (settings: StorageSettings) => void;
+  onMigrationComplete?: () => void;
 }
 
 const SettingsDialog = ({
@@ -35,6 +36,7 @@ const SettingsDialog = ({
   onPageFontSizeChange,
   storageSettings,
   onStorageSettingsChange,
+  onMigrationComplete,
 }: SettingsDialogProps) => {
   const isDesktop = isTauri();
 
