@@ -608,6 +608,7 @@ const Workspace = () => {
                 onPageFontSizeChange={handlePageFontSizeChange}
                 storageSettings={storageSettings}
                 onStorageSettingsChange={handleStorageSettingsChange}
+                onMigrationComplete={refreshNotes}
               />
 
               <Tooltip>
