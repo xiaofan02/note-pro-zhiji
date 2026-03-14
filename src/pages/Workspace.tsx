@@ -121,6 +121,19 @@ const Workspace = () => {
   };
 
   const handleMoveNote = async (noteId: string, folderId: string | null) => {
+    if (storageSettings.mode === "local") {
+      const target = notes.find((n) => n.id === noteId);
+      if (!target) return;
+      const updated = {
+        ...target,
+        folder_id: folderId,
+        updated_at: new Date().toISOString(),
+      };
+      await localNotesStorage.save(updated, storageSettings.localPath);
+      await refreshNotes();
+      return;
+    }
+
     const ok = await moveNoteToFolder(noteId, folderId);
     if (ok) await refreshNotes();
   };
