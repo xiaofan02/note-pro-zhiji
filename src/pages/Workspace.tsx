@@ -49,6 +49,11 @@ const Workspace = () => {
     localStorage.setItem("noteFontSize", String(size));
   };
 
+  const handleStorageSettingsChange = (settings: StorageSettings) => {
+    setStorageSettingsState(settings);
+    setStorageSettings(settings);
+  };
+
   const toggleDarkMode = () => {
     const next = !isDark;
     setIsDark(next);
