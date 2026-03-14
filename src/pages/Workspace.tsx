@@ -16,12 +16,14 @@ import AiChatPanel from "@/components/workspace/AiChatPanel";
 import TagFilter from "@/components/workspace/TagFilter";
 import SettingsDialog from "@/components/workspace/SettingsDialog";
 import { useDocumentImport } from "@/hooks/useDocumentImport";
+import { getStorageSettings, setStorageSettings, StorageSettings } from "@/lib/localNotesStorage";
 import { cn } from "@/lib/utils";
 
 const Workspace = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
-  const { notes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, refreshNotes } = useNotes();
+  const [storageSettings, setStorageSettingsState] = useState<StorageSettings>(getStorageSettings);
+  const { notes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, refreshNotes } = useNotes(storageSettings);
   const { tags, noteTagsMap, createTag, addTagToNote, removeTagFromNote, getTagsForNote } = useTags();
   const { folders, createFolder, renameFolder, deleteFolder, moveNoteToFolder, getChildFolders } = useFolders();
   const { importFile, acceptString } = useDocumentImport();
@@ -45,6 +47,11 @@ const Workspace = () => {
   const handlePageFontSizeChange = (size: number) => {
     setPageFontSize(size);
     localStorage.setItem("noteFontSize", String(size));
+  };
+
+  const handleStorageSettingsChange = (settings: StorageSettings) => {
+    setStorageSettingsState(settings);
+    setStorageSettings(settings);
   };
 
   const toggleDarkMode = () => {
@@ -599,6 +606,8 @@ const Workspace = () => {
               <SettingsDialog
                 pageFontSize={pageFontSize}
                 onPageFontSizeChange={handlePageFontSizeChange}
+                storageSettings={storageSettings}
+                onStorageSettingsChange={handleStorageSettingsChange}
               />
 
               <Tooltip>
