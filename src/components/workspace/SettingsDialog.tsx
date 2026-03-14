@@ -186,7 +186,13 @@ const SettingsDialog = ({
               ))}
             </div>
           </div>
+          {/* Data migration */}
+          <DataMigration
+            storageSettings={storageSettings}
+            onMigrationComplete={onMigrationComplete || (() => {})}
+          />
         </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );
