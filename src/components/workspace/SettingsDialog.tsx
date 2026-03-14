@@ -3,6 +3,7 @@ import { Settings, HardDrive, Cloud, FolderOpen, Info } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   getStorageSettings,
   setStorageSettings,
@@ -10,6 +11,7 @@ import {
   localNotesStorage,
   isTauri,
 } from "@/lib/localNotesStorage";
+import DataMigration from "./DataMigration";
 
 const PAGE_FONT_MIN = 12;
 const PAGE_FONT_MAX = 24;
@@ -26,6 +28,7 @@ interface SettingsDialogProps {
   onPageFontSizeChange: (size: number) => void;
   storageSettings: StorageSettings;
   onStorageSettingsChange: (settings: StorageSettings) => void;
+  onMigrationComplete?: () => void;
 }
 
 const SettingsDialog = ({
@@ -33,6 +36,7 @@ const SettingsDialog = ({
   onPageFontSizeChange,
   storageSettings,
   onStorageSettingsChange,
+  onMigrationComplete,
 }: SettingsDialogProps) => {
   const isDesktop = isTauri();
 
@@ -63,10 +67,11 @@ const SettingsDialog = ({
         </TooltipTrigger>
         <TooltipContent side="right" className="text-xs">设置</TooltipContent>
       </Tooltip>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="text-base">设置</DialogTitle>
         </DialogHeader>
+        <ScrollArea className="max-h-[70vh] pr-3">
         <div className="space-y-6 py-2">
           {/* Storage mode */}
           <div className="space-y-3">
@@ -181,7 +186,13 @@ const SettingsDialog = ({
               ))}
             </div>
           </div>
+          {/* Data migration */}
+          <DataMigration
+            storageSettings={storageSettings}
+            onMigrationComplete={onMigrationComplete || (() => {})}
+          />
         </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );
