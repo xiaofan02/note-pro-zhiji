@@ -67,10 +67,11 @@ const SettingsDialog = ({
         </TooltipTrigger>
         <TooltipContent side="right" className="text-xs">设置</TooltipContent>
       </Tooltip>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="text-base">设置</DialogTitle>
         </DialogHeader>
+        <ScrollArea className="max-h-[70vh] pr-3">
         <div className="space-y-6 py-2">
           {/* Storage mode */}
           <div className="space-y-3">
