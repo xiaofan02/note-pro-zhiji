@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
-import { Download, Upload, FileDown, Loader2, CheckCircle2 } from "lucide-react";
+import { Download, Upload, FileDown, Loader2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -8,13 +9,15 @@ import { Note } from "@/hooks/useNotes";
 import JSZip from "jszip";
 import TurndownService from "turndown";
 
-type ExportFormat = "md" | "html" | "json" | "txt";
+type ExportFormat = "md" | "html" | "json" | "txt" | "csv" | "docx";
 
-const FORMAT_OPTIONS: { value: ExportFormat; label: string; desc: string }[] = [
-  { value: "md", label: "Markdown", desc: ".md 文件" },
-  { value: "html", label: "HTML", desc: ".html 文件" },
-  { value: "json", label: "JSON", desc: ".json 文件" },
-  { value: "txt", label: "纯文本", desc: ".txt 文件" },
+const FORMAT_OPTIONS: { value: ExportFormat; label: string }[] = [
+  { value: "md", label: "Markdown" },
+  { value: "html", label: "HTML" },
+  { value: "json", label: "JSON" },
+  { value: "txt", label: "纯文本" },
+  { value: "csv", label: "CSV" },
+  { value: "docx", label: "DOCX" },
 ];
 
 function htmlToMarkdown(html: string): string {
@@ -28,7 +31,14 @@ function htmlToPlainText(html: string): string {
   return div.textContent || div.innerText || "";
 }
 
-function convertNote(note: Note, format: ExportFormat): { content: string; ext: string } {
+function escapeCSV(str: string): string {
+  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function convertNote(note: Note, format: ExportFormat): { content: string | Blob; ext: string; isBinary?: boolean } {
   switch (format) {
     case "md":
       return { content: `# ${note.title}\n\n${htmlToMarkdown(note.content)}`, ext: ".md" };
@@ -49,11 +59,46 @@ function convertNote(note: Note, format: ExportFormat): { content: string; ext: 
       };
     case "txt":
       return { content: `${note.title}\n\n${htmlToPlainText(note.content)}`, ext: ".txt" };
+    case "csv": {
+      const plainContent = htmlToPlainText(note.content).replace(/\r?\n/g, " ");
+      const row = `${escapeCSV(note.title)},${escapeCSV(plainContent)},${escapeCSV(note.created_at)},${escapeCSV(note.updated_at)}`;
+      return { content: row, ext: ".csv" };
+    }
+    case "docx":
+      // Will be handled separately with async docx generation
+      return { content: "", ext: ".docx" };
   }
+}
+
+async function generateDocxBlob(note: Note): Promise<Blob> {
+  const { Document, Packer, Paragraph, HeadingLevel, TextRun } = await import("docx");
+  
+  const plainText = htmlToPlainText(note.content);
+  const paragraphs = plainText.split("\n").filter(Boolean);
+  
+  const doc = new Document({
+    sections: [{
+      children: [
+        new Paragraph({
+          heading: HeadingLevel.HEADING_1,
+          children: [new TextRun({ text: note.title, bold: true })],
+        }),
+        ...paragraphs.map(text => new Paragraph({ children: [new TextRun(text)] })),
+      ],
+    }],
+  });
+  
+  return await Packer.toBlob(doc);
 }
 
 function sanitizeFileName(name: string): string {
   return (name || "无标题笔记").replace(/[\\/:*?"<>|]/g, "_").slice(0, 100);
+}
+
+interface ProgressState {
+  current: number;
+  total: number;
+  label: string;
 }
 
 interface DataMigrationProps {
@@ -65,167 +110,135 @@ const DataMigration = ({ storageSettings, onMigrationComplete }: DataMigrationPr
   const { user } = useAuth();
   const { toast } = useToast();
   const [exportFormat, setExportFormat] = useState<ExportFormat>("md");
-  const [exporting, setExporting] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [importCount, setImportCount] = useState(0);
+  const [progress, setProgress] = useState<ProgressState | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isLocal = storageSettings.mode === "local";
+  const isProcessing = !!progress;
 
-  // ─── Export: Cloud → Local files (download as zip) ────────────
-  const handleExportCloudToLocal = async () => {
-    if (!user) return;
-    setExporting(true);
+  // ─── Generic export logic ─────────────────────────────────────
+  const doExport = async (notes: Note[], label: string) => {
+    if (notes.length === 0) {
+      toast({ title: "无笔记可导出", description: "没有找到任何笔记" });
+      return;
+    }
+
+    setProgress({ current: 0, total: notes.length, label: `正在导出 (0/${notes.length})` });
+
     try {
+      // Special handling for CSV: single file with header
+      if (exportFormat === "csv") {
+        const header = "标题,内容,创建时间,更新时间\n";
+        const rows: string[] = [];
+        for (let i = 0; i < notes.length; i++) {
+          const { content } = convertNote(notes[i], "csv");
+          rows.push(content as string);
+          setProgress({ current: i + 1, total: notes.length, label: `正在导出 (${i + 1}/${notes.length})` });
+        }
+        const csvContent = "\uFEFF" + header + rows.join("\n"); // BOM for Excel
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
+        downloadBlob(blob, `智记笔记导出_${new Date().toISOString().slice(0, 10)}.csv`);
+        toast({ title: "导出成功", description: `已导出 ${notes.length} 条笔记为 CSV` });
+        setProgress(null);
+        return;
+      }
+
+      const zip = new JSZip();
+      const usedNames = new Set<string>();
+
+      for (let i = 0; i < notes.length; i++) {
+        const note = notes[i];
+        let fileName = sanitizeFileName(note.title);
+
+        if (exportFormat === "docx") {
+          const blob = await generateDocxBlob(note);
+          let finalName = fileName + ".docx";
+          let counter = 1;
+          while (usedNames.has(finalName)) { finalName = `${fileName}_${counter++}.docx`; }
+          usedNames.add(finalName);
+          zip.file(finalName, blob);
+        } else {
+          const { content, ext } = convertNote(note, exportFormat);
+          let finalName = fileName + ext;
+          let counter = 1;
+          while (usedNames.has(finalName)) { finalName = `${fileName}_${counter++}${ext}`; }
+          usedNames.add(finalName);
+          zip.file(finalName, content as string);
+        }
+
+        setProgress({ current: i + 1, total: notes.length, label: `正在导出 (${i + 1}/${notes.length})` });
+      }
+
+      setProgress({ current: notes.length, total: notes.length, label: "正在打包 ZIP..." });
+      const blob = await zip.generateAsync({ type: "blob" });
+      downloadBlob(blob, `智记笔记导出_${new Date().toISOString().slice(0, 10)}.zip`);
+
+      toast({ title: "导出成功", description: `已导出 ${notes.length} 条笔记为 ${exportFormat.toUpperCase()} 格式` });
+    } catch (e: any) {
+      toast({ title: "导出失败", description: e.message, variant: "destructive" });
+    }
+    setProgress(null);
+  };
+
+  function downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const handleExport = async () => {
+    if (isLocal) {
+      const notes = await localNotesStorage.getAll(storageSettings.localPath);
+      await doExport(notes, "本地");
+    } else {
+      if (!user) return;
       const { data, error } = await supabase
         .from("notes")
         .select("id, title, content, folder_id, created_at, updated_at")
         .order("updated_at", { ascending: false });
-
-      if (error) throw error;
-      if (!data || data.length === 0) {
-        toast({ title: "无笔记可导出", description: "云端没有找到任何笔记" });
-        setExporting(false);
-        return;
-      }
-
-      const zip = new JSZip();
-      const usedNames = new Set<string>();
-
-      for (const note of data) {
-        const { content, ext } = convertNote(note, exportFormat);
-        let fileName = sanitizeFileName(note.title);
-        // Deduplicate names
-        let finalName = fileName + ext;
-        let counter = 1;
-        while (usedNames.has(finalName)) {
-          finalName = `${fileName}_${counter}${ext}`;
-          counter++;
-        }
-        usedNames.add(finalName);
-        zip.file(finalName, content);
-      }
-
-      const blob = await zip.generateAsync({ type: "blob" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `智记笔记导出_${new Date().toISOString().slice(0, 10)}.zip`;
-      a.click();
-      URL.revokeObjectURL(url);
-
-      toast({ title: "导出成功", description: `已导出 ${data.length} 条笔记为 ${exportFormat.toUpperCase()} 格式` });
-    } catch (e: any) {
-      toast({ title: "导出失败", description: e.message, variant: "destructive" });
+      if (error) { toast({ title: "导出失败", description: error.message, variant: "destructive" }); return; }
+      await doExport(data || [], "云端");
     }
-    setExporting(false);
   };
 
-  // ─── Export: Local → download as zip ──────────────────────────
-  const handleExportLocalToFiles = async () => {
-    setExporting(true);
-    try {
-      const localNotes = await localNotesStorage.getAll(storageSettings.localPath);
-      if (localNotes.length === 0) {
-        toast({ title: "无笔记可导出", description: "本地没有找到任何笔记" });
-        setExporting(false);
-        return;
-      }
+  // ─── Import files ─────────────────────────────────────────────
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const fileArr = Array.from(files);
+    e.target.value = "";
 
-      const zip = new JSZip();
-      const usedNames = new Set<string>();
-
-      for (const note of localNotes) {
-        const { content, ext } = convertNote(note, exportFormat);
-        let fileName = sanitizeFileName(note.title);
-        let finalName = fileName + ext;
-        let counter = 1;
-        while (usedNames.has(finalName)) {
-          finalName = `${fileName}_${counter}${ext}`;
-          counter++;
-        }
-        usedNames.add(finalName);
-        zip.file(finalName, content);
-      }
-
-      const blob = await zip.generateAsync({ type: "blob" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `智记笔记导出_本地_${new Date().toISOString().slice(0, 10)}.zip`;
-      a.click();
-      URL.revokeObjectURL(url);
-
-      toast({ title: "导出成功", description: `已导出 ${localNotes.length} 条本地笔记` });
-    } catch (e: any) {
-      toast({ title: "导出失败", description: e.message, variant: "destructive" });
-    }
-    setExporting(false);
-  };
-
-  // ─── Import: Files → Cloud ────────────────────────────────────
-  const handleImportToCloud = async (files: FileList) => {
-    if (!user) return;
-    setImporting(true);
-    setImportCount(0);
+    setProgress({ current: 0, total: fileArr.length, label: `正在导入 (0/${fileArr.length})` });
     let successCount = 0;
 
-    for (const file of Array.from(files)) {
+    for (let i = 0; i < fileArr.length; i++) {
       try {
-        const parsed = await parseImportFile(file);
-        if (!parsed) continue;
+        const parsed = await parseImportFile(fileArr[i]);
+        if (!parsed) { setProgress(p => p ? { ...p, current: i + 1, label: `正在导入 (${i + 1}/${fileArr.length})` } : null); continue; }
 
-        const { error } = await supabase.from("notes").insert({
-          user_id: user.id,
-          title: parsed.title,
-          content: parsed.content,
-        });
-
-        if (!error) successCount++;
+        if (isLocal) {
+          const now = new Date().toISOString();
+          await localNotesStorage.save({
+            id: crypto.randomUUID(), title: parsed.title, content: parsed.content,
+            folder_id: null, created_at: now, updated_at: now,
+          }, storageSettings.localPath);
+          successCount++;
+        } else if (user) {
+          const { error } = await supabase.from("notes").insert({
+            user_id: user.id, title: parsed.title, content: parsed.content,
+          });
+          if (!error) successCount++;
+        }
       } catch {}
+      setProgress({ current: i + 1, total: fileArr.length, label: `正在导入 (${i + 1}/${fileArr.length})` });
     }
 
-    setImportCount(successCount);
-    setImporting(false);
-
+    setProgress(null);
     if (successCount > 0) {
-      toast({ title: "导入成功", description: `已将 ${successCount} 条笔记导入到云端` });
-      onMigrationComplete();
-    } else {
-      toast({ title: "导入失败", description: "未能成功导入任何笔记", variant: "destructive" });
-    }
-  };
-
-  // ─── Import: Files → Local ────────────────────────────────────
-  const handleImportToLocal = async (files: FileList) => {
-    setImporting(true);
-    setImportCount(0);
-    let successCount = 0;
-
-    for (const file of Array.from(files)) {
-      try {
-        const parsed = await parseImportFile(file);
-        if (!parsed) continue;
-
-        const now = new Date().toISOString();
-        const note: Note = {
-          id: crypto.randomUUID(),
-          title: parsed.title,
-          content: parsed.content,
-          folder_id: null,
-          created_at: now,
-          updated_at: now,
-        };
-        await localNotesStorage.save(note, storageSettings.localPath);
-        successCount++;
-      } catch {}
-    }
-
-    setImportCount(successCount);
-    setImporting(false);
-
-    if (successCount > 0) {
-      toast({ title: "导入成功", description: `已将 ${successCount} 条笔记导入到本地` });
+      toast({ title: "导入成功", description: `已将 ${successCount} 条笔记导入到${isLocal ? "本地" : "云端"}` });
       onMigrationComplete();
     } else {
       toast({ title: "导入失败", description: "未能成功导入任何笔记", variant: "destructive" });
@@ -235,86 +248,73 @@ const DataMigration = ({ storageSettings, onMigrationComplete }: DataMigrationPr
   // ─── Cloud ↔ Local sync ───────────────────────────────────────
   const handleCloudToLocal = async () => {
     if (!user) return;
-    setImporting(true);
     try {
       const { data, error } = await supabase
         .from("notes")
         .select("id, title, content, folder_id, created_at, updated_at")
         .order("updated_at", { ascending: false });
-
       if (error) throw error;
-      if (!data || data.length === 0) {
-        toast({ title: "无笔记可迁移", description: "云端没有笔记" });
-        setImporting(false);
-        return;
-      }
+      if (!data || data.length === 0) { toast({ title: "无笔记可迁移" }); return; }
 
-      let count = 0;
-      for (const note of data) {
-        await localNotesStorage.save(note, storageSettings.localPath);
-        count++;
+      setProgress({ current: 0, total: data.length, label: `正在迁移 (0/${data.length})` });
+      for (let i = 0; i < data.length; i++) {
+        await localNotesStorage.save(data[i], storageSettings.localPath);
+        setProgress({ current: i + 1, total: data.length, label: `正在迁移 (${i + 1}/${data.length})` });
       }
-
-      toast({ title: "迁移成功", description: `已将 ${count} 条云端笔记复制到本地存储` });
+      setProgress(null);
+      toast({ title: "迁移成功", description: `已将 ${data.length} 条云端笔记复制到本地` });
       onMigrationComplete();
     } catch (e: any) {
+      setProgress(null);
       toast({ title: "迁移失败", description: e.message, variant: "destructive" });
     }
-    setImporting(false);
   };
 
   const handleLocalToCloud = async () => {
     if (!user) return;
-    setImporting(true);
     try {
       const localNotes = await localNotesStorage.getAll(storageSettings.localPath);
-      if (localNotes.length === 0) {
-        toast({ title: "无笔记可迁移", description: "本地没有笔记" });
-        setImporting(false);
-        return;
-      }
+      if (localNotes.length === 0) { toast({ title: "无笔记可迁移" }); return; }
 
+      setProgress({ current: 0, total: localNotes.length, label: `正在迁移 (0/${localNotes.length})` });
       let count = 0;
-      for (const note of localNotes) {
+      for (let i = 0; i < localNotes.length; i++) {
         const { error } = await supabase.from("notes").insert({
-          user_id: user.id,
-          title: note.title,
-          content: note.content,
-          folder_id: null,
+          user_id: user.id, title: localNotes[i].title, content: localNotes[i].content, folder_id: null,
         });
         if (!error) count++;
+        setProgress({ current: i + 1, total: localNotes.length, label: `正在迁移 (${i + 1}/${localNotes.length})` });
       }
-
+      setProgress(null);
       toast({ title: "迁移成功", description: `已将 ${count} 条本地笔记上传到云端` });
       onMigrationComplete();
     } catch (e: any) {
+      setProgress(null);
       toast({ title: "迁移失败", description: e.message, variant: "destructive" });
     }
-    setImporting(false);
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    if (isLocal) {
-      handleImportToLocal(files);
-    } else {
-      handleImportToCloud(files);
-    }
-    e.target.value = "";
-  };
-
-  const isProcessing = exporting || importing;
+  const progressPercent = progress ? Math.round((progress.current / Math.max(progress.total, 1)) * 100) : 0;
 
   return (
     <div className="space-y-3">
       <label className="text-sm font-medium text-foreground">数据迁移</label>
 
+      {/* Progress bar */}
+      {progress && (
+        <div className="space-y-1.5 p-3 rounded-lg bg-muted/50 border border-border animate-in fade-in-50">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-foreground">{progress.label}</span>
+            <span className="text-xs text-muted-foreground">{progressPercent}%</span>
+          </div>
+          <Progress value={progressPercent} className="h-2" />
+        </div>
+      )}
+
       {/* Export format selector */}
       <div className="space-y-2">
         <p className="text-xs text-muted-foreground">导出格式</p>
-        <div className="grid grid-cols-4 gap-1.5">
+        <div className="grid grid-cols-3 gap-1.5">
           {FORMAT_OPTIONS.map((fmt) => (
             <button
               key={fmt.value}
@@ -332,18 +332,18 @@ const DataMigration = ({ storageSettings, onMigrationComplete }: DataMigrationPr
         </div>
       </div>
 
-      {/* Export buttons */}
+      {/* Export button */}
       <div className="space-y-2">
         <button
-          onClick={isLocal ? handleExportLocalToFiles : handleExportCloudToLocal}
+          onClick={handleExport}
           disabled={isProcessing}
           className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-accent text-accent-foreground text-sm font-medium hover:bg-accent/80 transition-colors disabled:opacity-50"
         >
-          {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-          {exporting ? "正在导出..." : `导出${isLocal ? "本地" : "云端"}笔记为文件`}
+          {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+          导出{isLocal ? "本地" : "云端"}笔记为 {exportFormat.toUpperCase()}
         </button>
         <p className="text-[11px] text-muted-foreground leading-relaxed">
-          将{isLocal ? "本地存储" : "云端"}的所有笔记打包为 .zip 下载，格式为 {exportFormat.toUpperCase()}
+          {exportFormat === "csv" ? "导出为单个 CSV 文件" : "导出为 ZIP 压缩包"}，格式为 {exportFormat.toUpperCase()}
         </p>
       </div>
 
@@ -354,11 +354,11 @@ const DataMigration = ({ storageSettings, onMigrationComplete }: DataMigrationPr
           disabled={isProcessing}
           className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-accent text-accent-foreground text-sm font-medium hover:bg-accent/80 transition-colors disabled:opacity-50"
         >
-          {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-          {importing ? `正在导入... (${importCount})` : `批量导入文件到${isLocal ? "本地" : "云端"}`}
+          <Upload className="w-4 h-4" />
+          批量导入文件到{isLocal ? "本地" : "云端"}
         </button>
         <p className="text-[11px] text-muted-foreground leading-relaxed">
-          支持 .md、.txt、.html、.json、.csv、.docx 等格式，可多选文件
+          支持 .md、.txt、.html、.json、.csv、.docx 等格式，可多选
         </p>
         <input
           type="file"
@@ -426,15 +426,10 @@ async function parseImportFile(file: File): Promise<{ title: string; content: st
         const text = await file.text();
         try {
           const parsed = JSON.parse(text);
-          // If it looks like our export format, use title/content directly
-          if (parsed.title && parsed.content) {
-            return { title: parsed.title, content: parsed.content };
-          }
+          if (parsed.title && parsed.content) return { title: parsed.title, content: parsed.content };
           const formatted = JSON.stringify(parsed, null, 2);
           return { title, content: `<pre><code>${formatted.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code></pre>` };
-        } catch {
-          return { title, content: `<p>${text}</p>` };
-        }
+        } catch { return { title, content: `<p>${text}</p>` }; }
       }
       case ".csv": {
         const text = await file.text();
@@ -444,11 +439,7 @@ async function parseImportFile(file: File): Promise<{ title: string; content: st
         let html = "<table><thead><tr>";
         rows[0].forEach(c => { html += `<th>${c}</th>`; });
         html += "</tr></thead><tbody>";
-        for (let i = 1; i < rows.length; i++) {
-          html += "<tr>";
-          rows[i].forEach(c => { html += `<td>${c}</td>`; });
-          html += "</tr>";
-        }
+        for (let i = 1; i < rows.length; i++) { html += "<tr>"; rows[i].forEach(c => { html += `<td>${c}</td>`; }); html += "</tr>"; }
         html += "</tbody></table>";
         return { title, content: html };
       }
@@ -458,19 +449,13 @@ async function parseImportFile(file: File): Promise<{ title: string; content: st
         const result = await mammoth.convertToHtml({ arrayBuffer });
         return { title, content: result.value };
       }
-      case ".txt":
-      case ".log":
-      case ".rtf":
-      case ".xml":
       default: {
         const text = await file.text();
         const html = text.split("\n").map(l => `<p>${l || "<br>"}</p>`).join("");
         return { title, content: html };
       }
     }
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 export default DataMigration;
