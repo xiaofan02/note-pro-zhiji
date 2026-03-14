@@ -18,7 +18,7 @@ import AiChatPanel from "@/components/workspace/AiChatPanel";
 import TagFilter from "@/components/workspace/TagFilter";
 import SettingsDialog from "@/components/workspace/SettingsDialog";
 import { useDocumentImport } from "@/hooks/useDocumentImport";
-import { getStorageSettings, setStorageSettings, StorageSettings } from "@/lib/localNotesStorage";
+import { getStorageSettings, setStorageSettings, StorageSettings, localNotesStorage } from "@/lib/localNotesStorage";
 import { cn } from "@/lib/utils";
 
 const Workspace = () => {
@@ -200,22 +200,37 @@ const Workspace = () => {
     if (!file || !user) return;
     const result = await importFile(file);
     if (result) {
-      const { data, error } = await supabase
-        .from("notes")
-        .insert({
-          user_id: user.id,
+      if (storageSettings.mode === "local") {
+        const now = new Date().toISOString();
+        const note = {
+          id: crypto.randomUUID(),
           title: result.title,
           content: result.content,
           folder_id: activeFolderId || null,
-        })
-        .select("id, title, content, folder_id, created_at, updated_at")
-        .single();
-      if (!error && data) {
+          created_at: now,
+          updated_at: now,
+        };
+        await localNotesStorage.save(note, storageSettings.localPath);
         await refreshNotes();
-        setActiveNoteId(data.id);
-        if (activeFolderId) {
-          setExpandedFolders((prev) => new Set(prev).add(activeFolderId));
+        setActiveNoteId(note.id);
+      } else {
+        const { data, error } = await supabase
+          .from("notes")
+          .insert({
+            user_id: user.id,
+            title: result.title,
+            content: result.content,
+            folder_id: activeFolderId || null,
+          })
+          .select("id, title, content, folder_id, created_at, updated_at")
+          .single();
+        if (!error && data) {
+          await refreshNotes();
+          setActiveNoteId(data.id);
         }
+      }
+      if (activeFolderId) {
+        setExpandedFolders((prev) => new Set(prev).add(activeFolderId));
       }
     }
     e.target.value = "";
