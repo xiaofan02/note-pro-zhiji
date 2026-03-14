@@ -3,6 +3,7 @@ import { Settings, HardDrive, Cloud, FolderOpen, Info } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   getStorageSettings,
   setStorageSettings,
@@ -10,6 +11,7 @@ import {
   localNotesStorage,
   isTauri,
 } from "@/lib/localNotesStorage";
+import DataMigration from "./DataMigration";
 
 const PAGE_FONT_MIN = 12;
 const PAGE_FONT_MAX = 24;
