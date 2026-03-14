@@ -2,9 +2,11 @@ import React, { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import { useNavigate, Link } from "react-router-dom";
 import {
   Sparkles, FileText, LogOut, Plus, Search, Trash2, Moon, Sun, User,
-  FolderOpen, Folder, ChevronRight, ChevronDown, MoreHorizontal, FolderPlus, Edit2, Upload
+  FolderOpen, Folder, ChevronRight, ChevronDown, MoreHorizontal, FolderPlus, Edit2, Upload, ArrowLeftRight
 } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import DataMigration from "@/components/workspace/DataMigration";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -519,6 +521,26 @@ const Workspace = () => {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs">导入文档</TooltipContent>
             </Tooltip>
+            <Sheet>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <SheetTrigger asChild>
+                    <button className="px-3 py-2 rounded-lg bg-accent text-accent-foreground text-sm font-medium hover:bg-accent/80 transition-colors">
+                      <ArrowLeftRight className="w-4 h-4" />
+                    </button>
+                  </SheetTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">导入导出 / 数据迁移</TooltipContent>
+              </Tooltip>
+              <SheetContent side="left" className="w-[380px] sm:w-[420px] overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle>导入导出 / 数据迁移</SheetTitle>
+                </SheetHeader>
+                <div className="mt-4">
+                  <DataMigration storageSettings={storageSettings} onMigrationComplete={refreshNotes} />
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
           <input
             type="file"
