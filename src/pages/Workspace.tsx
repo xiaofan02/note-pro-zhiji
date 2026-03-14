@@ -22,7 +22,8 @@ import { cn } from "@/lib/utils";
 const Workspace = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
-  const { notes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, refreshNotes } = useNotes();
+  const [storageSettings, setStorageSettingsState] = useState<StorageSettings>(getStorageSettings);
+  const { notes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, refreshNotes } = useNotes(storageSettings);
   const { tags, noteTagsMap, createTag, addTagToNote, removeTagFromNote, getTagsForNote } = useTags();
   const { folders, createFolder, renameFolder, deleteFolder, moveNoteToFolder, getChildFolders } = useFolders();
   const { importFile, acceptString } = useDocumentImport();
