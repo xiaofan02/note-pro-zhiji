@@ -396,7 +396,7 @@ const Workspace = () => {
           )}
           style={{ paddingLeft: `${8 + depth * 12}px` }}
         >
-          <button onClick={(e) => { e.stopPropagation(); toggleFolder(folder.id); }} className="flex items-center gap-1.5 flex-1 min-w-0">
+          <button onClick={(e) => { e.stopPropagation(); setActiveFolderId(folder.id); toggleFolder(folder.id); }} className="flex items-center gap-1.5 flex-1 min-w-0">
             {isExpanded
               ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
               : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
