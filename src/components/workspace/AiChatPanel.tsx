@@ -283,6 +283,7 @@ const AiChatPanel = ({ onSaveNote }: AiChatPanelProps) => {
 
   // --- Expanded: fixed right sidebar ---
   return (
+    <>
     <div className="w-[340px] border-l border-border bg-card flex flex-col h-full shrink-0">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-border bg-muted/30 shrink-0">
