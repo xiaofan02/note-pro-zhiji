@@ -5,13 +5,53 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+interface AiProviderConfig {
+  provider: "lovable" | "openai" | "custom";
+  apiKey?: string;
+  model?: string;
+  baseUrl?: string;
+}
+
+function getProviderConfig(providerConfig?: AiProviderConfig): { url: string; apiKey: string; model: string } {
+  const provider = providerConfig?.provider || "lovable";
+
+  if (provider === "openai") {
+    const apiKey = providerConfig?.apiKey;
+    if (!apiKey) throw new Error("OpenAI API Key 未配置");
+    return {
+      url: (providerConfig?.baseUrl || "https://api.openai.com/v1") + "/chat/completions",
+      apiKey,
+      model: providerConfig?.model || "gpt-4o-mini",
+    };
+  }
+
+  if (provider === "custom") {
+    const apiKey = providerConfig?.apiKey;
+    const baseUrl = providerConfig?.baseUrl;
+    if (!apiKey || !baseUrl) throw new Error("自定义 AI 的 API Key 或 Base URL 未配置");
+    return {
+      url: baseUrl.replace(/\/$/, "") + "/chat/completions",
+      apiKey,
+      model: providerConfig?.model || "default",
+    };
+  }
+
+  // Default: Lovable AI
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+  return {
+    url: "https://ai.gateway.lovable.dev/v1/chat/completions",
+    apiKey: LOVABLE_API_KEY,
+    model: "google/gemini-3-flash-preview",
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { content, action } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const { content, action, providerConfig } = await req.json();
+    const { url, apiKey, model } = getProviderConfig(providerConfig);
 
     let systemPrompt = "";
     if (action === "organize") {
@@ -32,14 +72,14 @@ serve(async (req) => {
       throw new Error("Unknown action: " + action);
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch(url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content },
@@ -60,8 +100,8 @@ serve(async (req) => {
         });
       }
       const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
-      throw new Error("AI gateway error");
+      console.error("AI error:", response.status, t);
+      throw new Error(`AI 请求失败 (${response.status}): ${t.slice(0, 200)}`);
     }
 
     const data = await response.json();

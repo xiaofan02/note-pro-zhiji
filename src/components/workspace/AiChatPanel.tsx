@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import { cn } from "@/lib/utils";
 import { useChatConversations } from "@/hooks/useChatConversations";
+import { getAiProviderSettings } from "@/lib/aiProviderSettings";
 
 interface AiChatPanelProps {
   onSaveNote: (title: string, content: string, folderId?: string) => Promise<void>;
@@ -147,7 +148,19 @@ const AiChatPanel = ({ onSaveNote }: AiChatPanelProps) => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: allLocal }),
+        body: JSON.stringify({
+          messages: allLocal,
+          providerConfig: (() => {
+            const s = getAiProviderSettings();
+            if (s.provider === "lovable") return undefined;
+            return {
+              provider: s.provider,
+              apiKey: s.provider === "openai" ? s.openaiApiKey : s.customApiKey,
+              model: s.provider === "openai" ? s.openaiModel : s.customModel,
+              baseUrl: s.provider === "openai" ? s.openaiBaseUrl : s.customBaseUrl,
+            };
+          })(),
+        }),
       });
       if (!resp.ok) {
         const errData = await resp.json().catch(() => ({}));
