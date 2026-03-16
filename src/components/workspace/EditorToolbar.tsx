@@ -173,7 +173,7 @@ const EditorToolbar = ({ editor, onInsertImage }: EditorToolbarProps) => {
                   {FONT_SIZES.filter(s => s !== DEFAULT_SIZE).map((s) => (
                     <button
                       key={s}
-                      onClick={() => editor.chain().focus().setFontSize(`${s}px`).run()}
+                      onClick={() => (editor.chain().focus() as any).setMark('textStyle', { fontSize: `${s}px` }).run()}
                       className={`px-3 py-1 text-xs rounded hover:bg-accent text-left ${currentSize === s ? "bg-accent font-medium" : ""}`}
                     >
                       {s}px
