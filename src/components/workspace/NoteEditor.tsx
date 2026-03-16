@@ -187,8 +187,15 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
     }
     setAiLoading(action);
     try {
+      const aiSettings = getAiProviderSettings();
+      const providerConfig = aiSettings.provider === "lovable" ? undefined : {
+        provider: aiSettings.provider,
+        apiKey: aiSettings.provider === "openai" ? aiSettings.openaiApiKey : aiSettings.customApiKey,
+        model: aiSettings.provider === "openai" ? aiSettings.openaiModel : aiSettings.customModel,
+        baseUrl: aiSettings.provider === "openai" ? aiSettings.openaiBaseUrl : aiSettings.customBaseUrl,
+      };
       const { data, error } = await supabase.functions.invoke("ai-notes", {
-        body: { content, action },
+        body: { content, action, providerConfig },
       });
       if (error) throw error;
       if (data?.error) {
