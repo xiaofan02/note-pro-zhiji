@@ -472,6 +472,8 @@ const AiChatPanel = ({ onSaveNote }: AiChatPanelProps) => {
         </>
       )}
     </div>
+    <UpgradePrompt open={showUpgrade} onOpenChange={setShowUpgrade} feature="AI 对话助手" />
+    </>
   );
 };
 
