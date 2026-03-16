@@ -16,7 +16,7 @@ interface UserInfo {
 
 const Admin = () => {
   const { user } = useAuth();
-  const { role, loading: roleLoading } = useUserRole();
+  const { isAdmin, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -29,25 +29,22 @@ const Admin = () => {
   const [tab, setTab] = useState<"users" | "ai" | "stats">("users");
 
   useEffect(() => {
-    if (!roleLoading && role !== "admin") {
+    if (!roleLoading && !isAdmin) {
       navigate("/workspace");
     }
-  }, [role, roleLoading, navigate]);
+  }, [isAdmin, roleLoading, navigate]);
 
   useEffect(() => {
-    if (role === "admin") {
+    if (isAdmin) {
       loadData();
     }
-  }, [role]);
+  }, [isAdmin]);
 
   const loadData = async () => {
     setLoadingUsers(true);
     try {
-      // Load profiles
       const { data: profiles } = await supabase.from("profiles").select("user_id, display_name, avatar_url");
-      // Load roles
       const { data: roles } = await supabase.from("user_roles").select("user_id, role");
-      // Load today's usage
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const { data: usage } = await supabase.from("ai_usage").select("user_id").gte("created_at", today.toISOString());
@@ -69,7 +66,6 @@ const Admin = () => {
       setUsers(userList);
       setTotalUsageToday((usage || []).length);
 
-      // Load config
       const { data: configs } = await supabase.from("system_config").select("key, value");
       (configs || []).forEach((c: any) => {
         if (c.key === "ai_model") setAiConfig(c.value);
@@ -82,10 +78,13 @@ const Admin = () => {
   };
 
   const updateUserRole = async (userId: string, newRole: string) => {
-    const { error } = await supabase.from("user_roles").update({ role: newRole }).eq("user_id", userId);
+    // Use upsert-like approach: update first, insert if needed
+    const { error } = await supabase.from("user_roles")
+      .update({ role: newRole as any })
+      .eq("user_id", userId);
     if (error) {
-      // Try insert if no row exists
-      const { error: insertErr } = await supabase.from("user_roles").insert({ user_id: userId, role: newRole });
+      const { error: insertErr } = await supabase.from("user_roles")
+        .insert({ user_id: userId, role: newRole as any });
       if (insertErr) { toast({ title: "更新失败", description: insertErr.message, variant: "destructive" }); return; }
     }
     toast({ title: "角色已更新" });
@@ -95,8 +94,8 @@ const Admin = () => {
   const saveAiConfig = async () => {
     setSavingConfig(true);
     try {
-      await supabase.from("system_config").upsert({ key: "ai_model", value: aiConfig, updated_at: new Date().toISOString() });
-      await supabase.from("system_config").upsert({ key: "free_daily_limit", value: dailyLimit, updated_at: new Date().toISOString() });
+      await supabase.from("system_config").upsert({ key: "ai_model", value: aiConfig as any, updated_at: new Date().toISOString() });
+      await supabase.from("system_config").upsert({ key: "free_daily_limit", value: dailyLimit as any, updated_at: new Date().toISOString() });
       toast({ title: "配置已保存" });
     } catch (e: any) {
       toast({ title: "保存失败", description: e.message, variant: "destructive" });
@@ -108,11 +107,10 @@ const Admin = () => {
     return <div className="flex items-center justify-center h-screen"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
   }
 
-  if (role !== "admin") return null;
+  if (!isAdmin) return null;
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <div className="border-b border-border bg-card">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -126,7 +124,6 @@ const Admin = () => {
       </div>
 
       <div className="max-w-6xl mx-auto px-6 py-6">
-        {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-muted p-1 rounded-lg w-fit">
           {[
             { id: "users" as const, label: "用户管理", icon: Users },
@@ -140,7 +137,6 @@ const Admin = () => {
           ))}
         </div>
 
-        {/* Users tab */}
         {tab === "users" && (
           <div className="bg-card rounded-lg border border-border">
             <div className="px-6 py-4 border-b border-border">
@@ -174,7 +170,6 @@ const Admin = () => {
           </div>
         )}
 
-        {/* AI config tab */}
         {tab === "ai" && (
           <div className="bg-card rounded-lg border border-border p-6 space-y-6 max-w-lg">
             <div className="space-y-3">
@@ -223,7 +218,6 @@ const Admin = () => {
           </div>
         )}
 
-        {/* Stats tab */}
         {tab === "stats" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-card rounded-lg border border-border p-6">
