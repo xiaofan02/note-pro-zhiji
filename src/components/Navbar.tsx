@@ -1,6 +1,8 @@
-import { Sparkles, Mic, Brain, Search, FileText, Monitor, LogOut, User } from "lucide-react";
+import { Sparkles, Mic, Brain, Search, FileText, Monitor, LogOut } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
+import UserAvatar from "@/components/workspace/UserAvatar";
 
 const Navbar = () => {
   const { user, loading, signOut } = useAuth();
