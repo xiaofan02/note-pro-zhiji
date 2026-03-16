@@ -183,6 +183,10 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   }, [editor, user]);
 
   const handleAiAction = async (action: "organize" | "summarize") => {
+    if (!isPro) {
+      setShowUpgrade(true);
+      return;
+    }
     if (!editor) return;
     const content = editor.getHTML();
     if (!content.trim() || content === "<p></p>") {
