@@ -165,7 +165,7 @@ const EditorToolbar = ({ editor, onInsertImage }: EditorToolbarProps) => {
                 <p className="text-xs text-muted-foreground mb-1.5 font-medium">文字大小</p>
                 <div className="flex flex-col gap-0.5">
                   <button
-                    onClick={() => { editor.chain().focus().unsetFontSize().run(); }}
+                    onClick={() => { (editor.chain().focus() as any).unsetMark('textStyle').run(); }}
                     className={`px-3 py-1 text-xs rounded hover:bg-accent text-left ${currentSize === DEFAULT_SIZE ? "bg-accent font-medium" : ""}`}
                   >
                     默认 (16px)
