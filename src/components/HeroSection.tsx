@@ -41,7 +41,6 @@ const HeroSection = () => {
               <div className="w-2 h-2 rounded-full bg-green-500" />
               支持 iOS / Android / Web
             </div>
-            <div>已有 10 万+ 用户</div>
           </div>
         </div>
         <div className="flex-1 flex justify-center">
