@@ -4,7 +4,6 @@ import { Tag } from "@/hooks/useTags";
 import { Save, Sparkles, FileText, Loader2, Mic } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { getAiProviderSettings } from "@/lib/aiProviderSettings";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -21,7 +20,6 @@ import TaskItem from "@tiptap/extension-task-item";
 import Placeholder from "@tiptap/extension-placeholder";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
-import TagManager from "./TagManager";
 import EditorToolbar from "./EditorToolbar";
 import CodeBlockComponent from "./CodeBlockComponent";
 
@@ -66,22 +64,15 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
-        codeBlock: false,
-      }),
+      StarterKit.configure({ heading: { levels: [1, 2, 3] }, codeBlock: false }),
       CodeBlockLowlight.extend({
-        addNodeView() {
-          return ReactNodeViewRenderer(CodeBlockComponent);
-        },
+        addNodeView() { return ReactNodeViewRenderer(CodeBlockComponent); },
       }).configure({ lowlight }),
       TiptapLink.configure({ openOnClick: false }),
       TiptapImage.configure({ inline: false }),
       Highlight.configure({ multicolor: true }),
-      TextStyle,
-      Color,
-      TaskList,
-      TaskItem.configure({ nested: true }),
+      TextStyle, Color,
+      TaskList, TaskItem.configure({ nested: true }),
       Placeholder.configure({ placeholder: "开始写点什么吧..." }),
     ],
     content: note.content || "",
@@ -103,39 +94,25 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   useEffect(() => {
     if (!editor) return;
     const handler = () => {
-      if (skipNextUpdate.current) {
-        skipNextUpdate.current = false;
-        return;
-      }
-      const html = editor.getHTML();
-      debouncedSave(titleRef.current, html);
+      if (skipNextUpdate.current) { skipNextUpdate.current = false; return; }
+      debouncedSave(titleRef.current, editor.getHTML());
     };
     editor.on("update", handler);
     return () => { editor.off("update", handler); };
   }, [editor, debouncedSave]);
 
   const { isListening, isSupported: voiceSupported, start: startListening, stop: stopListening } = useSpeechRecognition({
-    onResult: (text) => {
-      if (editor) {
-        editor.chain().focus().insertContent(text).run();
-      }
-    },
+    onResult: (text) => { if (editor) editor.chain().focus().insertContent(text).run(); },
   });
 
   const handleVoiceToggle = () => {
-    if (!isPro) {
-      setShowUpgrade(true);
-      return;
-    }
-    if (isListening) stopListening();
-    else startListening();
+    if (!isPro) { setShowUpgrade(true); return; }
+    if (isListening) stopListening(); else startListening();
   };
 
   const handleTitleChange = (val: string) => {
     setTitle(val);
-    if (editor) {
-      debouncedSave(val, editor.getHTML());
-    }
+    if (editor) debouncedSave(val, editor.getHTML());
   };
 
   const uploadImage = async (file: File): Promise<string | null> => {
@@ -143,10 +120,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
     const ext = file.name.split(".").pop() || "png";
     const path = `${user.id}/${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from("note-images").upload(path, file);
-    if (error) {
-      toast({ title: "图片上传失败", description: error.message, variant: "destructive" });
-      return null;
-    }
+    if (error) { toast({ title: "图片上传失败", description: error.message, variant: "destructive" }); return null; }
     const { data: urlData } = supabase.storage.from("note-images").getPublicUrl(path);
     return urlData.publicUrl;
   };
@@ -154,9 +128,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   const handleImageInsert = async (file: File) => {
     setUploadingImage(true);
     const url = await uploadImage(file);
-    if (url && editor) {
-      editor.chain().focus().setImage({ src: url }).run();
-    }
+    if (url && editor) editor.chain().focus().setImage({ src: url }).run();
     setUploadingImage(false);
   };
 
@@ -185,10 +157,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   }, [editor, user]);
 
   const handleAiAction = async (action: "organize" | "summarize") => {
-    if (!isPro) {
-      setShowUpgrade(true);
-      return;
-    }
+    if (!isPro) { setShowUpgrade(true); return; }
     if (!editor) return;
     const content = editor.getHTML();
     if (!content.trim() || content === "<p></p>") {
@@ -197,21 +166,9 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
     }
     setAiLoading(action);
     try {
-      const aiSettings = getAiProviderSettings();
-      const providerConfig = aiSettings.provider === "lovable" ? undefined : {
-        provider: aiSettings.provider,
-        apiKey: aiSettings.provider === "openai" ? aiSettings.openaiApiKey : aiSettings.customApiKey,
-        model: aiSettings.provider === "openai" ? aiSettings.openaiModel : aiSettings.customModel,
-        baseUrl: aiSettings.provider === "openai" ? aiSettings.openaiBaseUrl : aiSettings.customBaseUrl,
-      };
-      const { data, error } = await supabase.functions.invoke("ai-notes", {
-        body: { content, action, providerConfig },
-      });
+      const { data, error } = await supabase.functions.invoke("ai-notes", { body: { content, action } });
       if (error) throw error;
-      if (data?.error) {
-        toast({ title: "AI 错误", description: data.error, variant: "destructive" });
-        return;
-      }
+      if (data?.error) { toast({ title: "AI 错误", description: data.error, variant: "destructive" }); return; }
       if (action === "organize") {
         editor.commands.setContent(data.result);
         await onUpdate(note.id, { content: data.result });
@@ -229,59 +186,25 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
 
   return (
     <div className="flex-1 flex flex-col h-full">
-      <input
-        type="file"
-        ref={fileInputRef}
-        className="hidden"
-        accept="image/png,image/jpeg,image/gif,image/webp"
-        onChange={handleFileSelect}
-      />
+      <input type="file" ref={fileInputRef} className="hidden" accept="image/png,image/jpeg,image/gif,image/webp" onChange={handleFileSelect} />
 
-      {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-border gap-2 bg-background">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <span className="text-xs text-muted-foreground shrink-0">
             {new Date(note.updated_at).toLocaleString("zh-CN")}
           </span>
-          {/* TagManager - commented out for now
-          <TagManager
-            tags={tags}
-            noteTags={noteTags}
-            onCreateTag={onCreateTag}
-            onAddTag={(tagId) => onAddTag(note.id, tagId)}
-            onRemoveTag={(tagId) => onRemoveTag(note.id, tagId)}
-          />
-          */}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {voiceSupported && (
-            <button
-              onClick={handleVoiceToggle}
-              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                isListening
-                  ? "bg-destructive text-destructive-foreground animate-pulse"
-                  : "bg-accent text-accent-foreground hover:bg-accent/80"
-              }`}
-            >
-              <Mic className="w-3 h-3" />
-              {isListening ? "停止录音" : "语音速记"}
+            <button onClick={handleVoiceToggle} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${isListening ? "bg-destructive text-destructive-foreground animate-pulse" : "bg-accent text-accent-foreground hover:bg-accent/80"}`}>
+              <Mic className="w-3 h-3" /> {isListening ? "停止录音" : "语音速记"}
             </button>
           )}
-          <button
-            onClick={() => handleAiAction("organize")}
-            disabled={!!aiLoading}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors disabled:opacity-50"
-          >
-            {aiLoading === "organize" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-            智能整理
+          <button onClick={() => handleAiAction("organize")} disabled={!!aiLoading} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors disabled:opacity-50">
+            {aiLoading === "organize" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} 智能整理
           </button>
-          <button
-            onClick={() => handleAiAction("summarize")}
-            disabled={!!aiLoading}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors disabled:opacity-50"
-          >
-            {aiLoading === "summarize" ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
-            AI 总结
+          <button onClick={() => handleAiAction("summarize")} disabled={!!aiLoading} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors disabled:opacity-50">
+            {aiLoading === "summarize" ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />} AI 总结
           </button>
           <span className="text-xs text-muted-foreground flex items-center gap-1">
             {saving ? <>保存中...</> : <><Save className="w-3 h-3" /> 已保存</>}
@@ -298,32 +221,18 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
       {summary && (
         <div className="mx-6 mt-4 p-4 rounded-lg bg-accent/50 border border-border">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-foreground flex items-center gap-1">
-              <Sparkles className="w-3 h-3" /> AI 摘要
-            </span>
-            <button onClick={() => setSummary(null)} className="text-xs text-muted-foreground hover:text-foreground">
-              关闭
-            </button>
+            <span className="text-xs font-semibold text-foreground flex items-center gap-1"><Sparkles className="w-3 h-3" /> AI 摘要</span>
+            <button onClick={() => setSummary(null)} className="text-xs text-muted-foreground hover:text-foreground">关闭</button>
           </div>
           <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{summary}</p>
         </div>
       )}
 
-      {/* Formatting toolbar */}
       <EditorToolbar editor={editor} onInsertImage={() => fileInputRef.current?.click()} />
 
-      {/* Editor area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4" style={{ fontSize: `${pageFontSize}px` }}>
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => handleTitleChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              editor?.commands.focus("start");
-            }
-          }}
+        <input type="text" value={title} onChange={(e) => handleTitleChange(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); editor?.commands.focus("start"); } }}
           placeholder="笔记标题"
           className="w-full text-2xl font-bold bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/40"
         />

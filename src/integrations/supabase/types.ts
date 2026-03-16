@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_usage: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_conversations: {
         Row: {
           created_at: string
@@ -203,6 +224,24 @@ export type Database = {
         }
         Relationships: []
       }
+      system_config: {
+        Row: {
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value?: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       tags: {
         Row: {
           color: string
@@ -269,7 +308,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "free" | "pro"
+      app_role: "free" | "pro" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -397,7 +436,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["free", "pro"],
+      app_role: ["free", "pro", "admin"],
     },
   },
 } as const
