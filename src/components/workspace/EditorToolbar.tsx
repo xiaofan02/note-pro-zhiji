@@ -87,9 +87,9 @@ function stepFontSize(editor: Editor, direction: "up" | "down") {
   }
   const newSize = FONT_SIZES[targetIndex];
   if (newSize === DEFAULT_SIZE) {
-    editor.chain().focus().unsetFontSize().run();
+    (editor.chain().focus() as any).unsetMark('textStyle').run();
   } else {
-    editor.chain().focus().setFontSize(`${newSize}px`).run();
+    (editor.chain().focus() as any).setMark('textStyle', { fontSize: `${newSize}px` }).run();
   }
 }
 
