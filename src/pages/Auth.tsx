@@ -96,8 +96,11 @@ const Auth = () => {
     }
 
     // Web: use Lovable Cloud OAuth
+    const redirectUri = isDesktopOAuth
+      ? `${window.location.origin}/auth?desktop=true`
+      : window.location.origin;
     const result = await lovable.auth.signInWithOAuth(provider, {
-      redirect_uri: window.location.origin,
+      redirect_uri: redirectUri,
     });
     if (result.error) {
       toast({ title: "登录失败", description: String(result.error), variant: "destructive" });
