@@ -117,6 +117,10 @@ const AiChatPanel = ({ onSaveNote }: AiChatPanelProps) => {
   const sendMessage = async () => {
     const text = input.trim();
     if (!text || isLoading) return;
+    if (!isPro) {
+      setShowUpgrade(true);
+      return;
+    }
 
     // Ensure we have a conversation
     let convId = activeConversationId;
