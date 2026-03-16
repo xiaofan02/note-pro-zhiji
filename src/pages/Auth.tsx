@@ -7,7 +7,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isTauri } from "@/lib/localNotesStorage";
 import { openTauriOAuth } from "@/lib/tauriAuth";
-import { useToast } from "@/hooks/use-toast";
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
