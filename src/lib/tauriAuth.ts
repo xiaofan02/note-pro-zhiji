@@ -13,8 +13,11 @@
 import { isTauri } from "./localNotesStorage";
 import { supabase } from "@/integrations/supabase/client";
 
-/** The published web URL where OAuth redirects are properly configured */
-const WEB_AUTH_URL = "https://id-preview--bd6cf192-da9a-4073-a811-b82424100ee9.lovable.app";
+/**
+ * The web URL where OAuth redirects are properly configured.
+ * Uses the Lovable published URL. Update this if you connect a custom domain later.
+ */
+const WEB_AUTH_URL = import.meta.env.VITE_WEB_AUTH_URL || "https://id-preview--bd6cf192-da9a-4073-a811-b82424100ee9.lovable.app";
 
 /** Custom URL scheme registered in Tauri config */
 export const DEEP_LINK_SCHEME = "smartnote";
