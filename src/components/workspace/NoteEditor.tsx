@@ -7,6 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import { getAiProviderSettings } from "@/lib/aiProviderSettings";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
+import UpgradePrompt from "./UpgradePrompt";
 import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TiptapLink from "@tiptap/extension-link";
