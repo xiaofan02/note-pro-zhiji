@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { isTauri } from "@/lib/localNotesStorage";
+import { openTauriOAuth } from "@/lib/tauriAuth";
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -19,9 +21,17 @@ const Auth = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  const isDesktopOAuth = searchParams.get("desktop") === "true";
+
   useEffect(() => {
-    if (user) navigate("/workspace");
-  }, [user, navigate]);
+    if (user) {
+      if (isDesktopOAuth) {
+        navigate("/desktop-auth-callback");
+      } else {
+        navigate("/workspace");
+      }
+    }
+  }, [user, navigate, isDesktopOAuth]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,14 +84,39 @@ const Auth = () => {
 
   const handleSocialLogin = async (provider: "google" | "apple") => {
     setLoading(true);
+
+    // In Tauri desktop, open system browser for OAuth
+    if (isTauri()) {
+      const handled = await openTauriOAuth(provider);
+      if (handled) {
+        toast({ title: "已打开浏览器", description: "请在浏览器中完成登录，登录后将自动返回应用" });
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Web: use Lovable Cloud OAuth
+    const redirectUri = isDesktopOAuth
+      ? `${window.location.origin}/auth?desktop=true`
+      : window.location.origin;
     const result = await lovable.auth.signInWithOAuth(provider, {
-      redirect_uri: window.location.origin,
+      redirect_uri: redirectUri,
     });
     if (result.error) {
       toast({ title: "登录失败", description: String(result.error), variant: "destructive" });
     }
     setLoading(false);
   };
+
+  // Auto-trigger OAuth when opened from desktop app with ?desktop=true&provider=xxx
+  useEffect(() => {
+    const isDesktop = searchParams.get("desktop") === "true";
+    const provider = searchParams.get("provider") as "google" | "apple" | null;
+    if (isDesktop && provider && !isTauri()) {
+      handleSocialLogin(provider);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="min-h-screen bg-background flex">
