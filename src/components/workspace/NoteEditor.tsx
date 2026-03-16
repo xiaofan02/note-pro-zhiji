@@ -4,6 +4,7 @@ import { Tag } from "@/hooks/useTags";
 import { Save, Sparkles, FileText, Loader2, Mic } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { getAiProviderSettings } from "@/lib/aiProviderSettings";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useAuth } from "@/hooks/useAuth";
 import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
