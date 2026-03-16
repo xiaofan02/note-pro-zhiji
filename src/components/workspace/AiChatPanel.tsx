@@ -6,6 +6,8 @@ import rehypeRaw from "rehype-raw";
 import { cn } from "@/lib/utils";
 import { useChatConversations } from "@/hooks/useChatConversations";
 import { getAiProviderSettings } from "@/lib/aiProviderSettings";
+import { useUserRole } from "@/hooks/useUserRole";
+import UpgradePrompt from "./UpgradePrompt";
 
 interface AiChatPanelProps {
   onSaveNote: (title: string, content: string, folderId?: string) => Promise<void>;
@@ -22,6 +24,8 @@ const AiChatPanel = ({ onSaveNote }: AiChatPanelProps) => {
   const [viewMode, setViewMode] = useState<ViewMode>("chat");
   const [localMessages, setLocalMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const { isPro } = useUserRole();
 
   const [bubbleY, setBubbleY] = useState(() => {
     const saved = localStorage.getItem("aiChatBubbleY");
@@ -113,6 +117,10 @@ const AiChatPanel = ({ onSaveNote }: AiChatPanelProps) => {
   const sendMessage = async () => {
     const text = input.trim();
     if (!text || isLoading) return;
+    if (!isPro) {
+      setShowUpgrade(true);
+      return;
+    }
 
     // Ensure we have a conversation
     let convId = activeConversationId;
@@ -275,6 +283,7 @@ const AiChatPanel = ({ onSaveNote }: AiChatPanelProps) => {
 
   // --- Expanded: fixed right sidebar ---
   return (
+    <>
     <div className="w-[340px] border-l border-border bg-card flex flex-col h-full shrink-0">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-border bg-muted/30 shrink-0">
@@ -464,6 +473,8 @@ const AiChatPanel = ({ onSaveNote }: AiChatPanelProps) => {
         </>
       )}
     </div>
+    <UpgradePrompt open={showUpgrade} onOpenChange={setShowUpgrade} feature="AI 对话助手" />
+    </>
   );
 };
 

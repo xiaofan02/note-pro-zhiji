@@ -7,13 +7,14 @@ import { useToast } from "@/hooks/use-toast";
 import { getAiProviderSettings } from "@/lib/aiProviderSettings";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
+import UpgradePrompt from "./UpgradePrompt";
 import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TiptapLink from "@tiptap/extension-link";
 import TiptapImage from "@tiptap/extension-image";
 import Highlight from "@tiptap/extension-highlight";
-import { TextStyle } from "@tiptap/extension-text-style";
-import { FontSize } from "@tiptap/extension-text-style";
+import TextStyle from "@tiptap/extension-text-style";
 import Color from "@tiptap/extension-color";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
@@ -39,11 +40,13 @@ interface NoteEditorProps {
 
 const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onRemoveTag, pageFontSize }: NoteEditorProps) => {
   const { user } = useAuth();
+  const { isPro } = useUserRole();
   const [title, setTitle] = useState(note.title);
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const skipNextUpdate = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -76,7 +79,6 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
       TiptapImage.configure({ inline: false }),
       Highlight.configure({ multicolor: true }),
       TextStyle,
-      FontSize,
       Color,
       TaskList,
       TaskItem.configure({ nested: true }),
@@ -121,6 +123,10 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   });
 
   const handleVoiceToggle = () => {
+    if (!isPro) {
+      setShowUpgrade(true);
+      return;
+    }
     if (isListening) stopListening();
     else startListening();
   };
@@ -179,6 +185,10 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   }, [editor, user]);
 
   const handleAiAction = async (action: "organize" | "summarize") => {
+    if (!isPro) {
+      setShowUpgrade(true);
+      return;
+    }
     if (!editor) return;
     const content = editor.getHTML();
     if (!content.trim() || content === "<p></p>") {
@@ -319,6 +329,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
         />
         <EditorContent editor={editor} className="tiptap-editor" />
       </div>
+      <UpgradePrompt open={showUpgrade} onOpenChange={setShowUpgrade} feature="AI 功能" />
     </div>
   );
 };

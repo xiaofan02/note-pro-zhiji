@@ -87,9 +87,9 @@ function stepFontSize(editor: Editor, direction: "up" | "down") {
   }
   const newSize = FONT_SIZES[targetIndex];
   if (newSize === DEFAULT_SIZE) {
-    editor.chain().focus().unsetFontSize().run();
+    (editor.chain().focus() as any).unsetMark('textStyle').run();
   } else {
-    editor.chain().focus().setFontSize(`${newSize}px`).run();
+    (editor.chain().focus() as any).setMark('textStyle', { fontSize: `${newSize}px` }).run();
   }
 }
 
@@ -165,7 +165,7 @@ const EditorToolbar = ({ editor, onInsertImage }: EditorToolbarProps) => {
                 <p className="text-xs text-muted-foreground mb-1.5 font-medium">文字大小</p>
                 <div className="flex flex-col gap-0.5">
                   <button
-                    onClick={() => { editor.chain().focus().unsetFontSize().run(); }}
+                    onClick={() => { (editor.chain().focus() as any).unsetMark('textStyle').run(); }}
                     className={`px-3 py-1 text-xs rounded hover:bg-accent text-left ${currentSize === DEFAULT_SIZE ? "bg-accent font-medium" : ""}`}
                   >
                     默认 (16px)
@@ -173,7 +173,7 @@ const EditorToolbar = ({ editor, onInsertImage }: EditorToolbarProps) => {
                   {FONT_SIZES.filter(s => s !== DEFAULT_SIZE).map((s) => (
                     <button
                       key={s}
-                      onClick={() => editor.chain().focus().setFontSize(`${s}px`).run()}
+                      onClick={() => (editor.chain().focus() as any).setMark('textStyle', { fontSize: `${s}px` }).run()}
                       className={`px-3 py-1 text-xs rounded hover:bg-accent text-left ${currentSize === s ? "bg-accent font-medium" : ""}`}
                     >
                       {s}px
