@@ -510,6 +510,16 @@ const Workspace = () => {
                 onStorageSettingsChange={handleStorageSettingsChange}
                 onMigrationComplete={refreshNotes}
               />
+              {isAdmin && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button onClick={() => navigate("/admin")} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                      <Sparkles className="w-4 h-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="text-xs">管理后台</TooltipContent>
+                </Tooltip>
+              )}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button onClick={handleSignOut} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
