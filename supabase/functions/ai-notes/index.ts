@@ -1,48 +1,53 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-interface AiProviderConfig {
-  provider: "lovable" | "openai" | "custom";
-  apiKey?: string;
-  model?: string;
-  baseUrl?: string;
+async function getAiConfig(supabase: any) {
+  const { data } = await supabase.from("system_config").select("key, value").in("key", ["ai_model", "free_daily_limit"]);
+  const config: any = {};
+  for (const row of data || []) config[row.key] = row.value;
+  return config;
 }
 
-function getProviderConfig(providerConfig?: AiProviderConfig): { url: string; apiKey: string; model: string } {
-  const provider = providerConfig?.provider || "lovable";
+async function checkUsageLimit(supabase: any, userId: string, config: any) {
+  const { data: roleData } = await supabase.rpc("get_user_role", { _user_id: userId });
+  const role = roleData || "free";
+  if (role === "pro" || role === "admin") return true;
 
-  if (provider === "openai") {
-    const apiKey = providerConfig?.apiKey;
-    if (!apiKey) throw new Error("OpenAI API Key 未配置");
-    return {
-      url: (providerConfig?.baseUrl || "https://api.openai.com/v1") + "/chat/completions",
-      apiKey,
-      model: providerConfig?.model || "gpt-4o-mini",
-    };
-  }
+  const dailyLimit = typeof config.free_daily_limit === "number" ? config.free_daily_limit : 10;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const { count } = await supabase
+    .from("ai_usage")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("created_at", today.toISOString());
+
+  return (count || 0) < dailyLimit;
+}
+
+function getProviderUrl(aiModel: any): { url: string; apiKey: string; model: string } {
+  const provider = aiModel?.provider || "lovable";
+  const model = aiModel?.model || "google/gemini-3-flash-preview";
 
   if (provider === "custom") {
-    const apiKey = providerConfig?.apiKey;
-    const baseUrl = providerConfig?.baseUrl;
-    if (!apiKey || !baseUrl) throw new Error("自定义 AI 的 API Key 或 Base URL 未配置");
-    return {
-      url: baseUrl.replace(/\/$/, "") + "/chat/completions",
-      apiKey,
-      model: providerConfig?.model || "default",
-    };
+    const apiKey = aiModel?.apiKey;
+    const baseUrl = aiModel?.baseUrl;
+    if (!apiKey || !baseUrl) throw new Error("自定义 AI 未配置");
+    return { url: baseUrl.replace(/\/$/, "") + "/chat/completions", apiKey, model };
   }
 
-  // Default: Lovable AI
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
   return {
     url: "https://ai.gateway.lovable.dev/v1/chat/completions",
     apiKey: LOVABLE_API_KEY,
-    model: "google/gemini-3-flash-preview",
+    model,
   };
 }
 
@@ -50,8 +55,29 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { content, action, providerConfig } = await req.json();
-    const { url, apiKey, model } = getProviderConfig(providerConfig);
+    const authHeader = req.headers.get("authorization") || "";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user } } = await anonClient.auth.getUser(token);
+
+    const { content, action } = await req.json();
+    const config = await getAiConfig(supabase);
+
+    if (user) {
+      const allowed = await checkUsageLimit(supabase, user.id, config);
+      if (!allowed) {
+        return new Response(JSON.stringify({ error: "今日 AI 使用次数已达上限，请升级 Pro 获取无限使用" }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      await supabase.from("ai_usage").insert({ user_id: user.id, action });
+    }
+
+    const { url, apiKey, model } = getProviderUrl(config.ai_model);
 
     let systemPrompt = "";
     if (action === "organize") {
@@ -74,16 +100,10 @@ serve(async (req) => {
 
     const response = await fetch(url, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content },
-        ],
+        messages: [{ role: "system", content: systemPrompt }, { role: "user", content }],
         stream: false,
       }),
     });
@@ -95,7 +115,7 @@ serve(async (req) => {
         });
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI 额度不足，请充值" }), {
+        return new Response(JSON.stringify({ error: "AI 额度不足" }), {
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
