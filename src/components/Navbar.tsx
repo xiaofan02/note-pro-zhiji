@@ -6,6 +6,7 @@ import UserAvatar from "@/components/workspace/UserAvatar";
 
 const Navbar = () => {
   const { user, loading, signOut } = useAuth();
+  const { isPro } = useUserRole();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
