@@ -21,9 +21,17 @@ const Auth = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  const isDesktopOAuth = searchParams.get("desktop") === "true";
+
   useEffect(() => {
-    if (user) navigate("/workspace");
-  }, [user, navigate]);
+    if (user) {
+      if (isDesktopOAuth) {
+        navigate("/desktop-auth-callback");
+      } else {
+        navigate("/workspace");
+      }
+    }
+  }, [user, navigate, isDesktopOAuth]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
