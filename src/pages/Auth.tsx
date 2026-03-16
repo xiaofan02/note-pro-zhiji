@@ -77,6 +77,18 @@ const Auth = () => {
 
   const handleSocialLogin = async (provider: "google" | "apple") => {
     setLoading(true);
+
+    // In Tauri desktop, open system browser for OAuth
+    if (isTauri()) {
+      const handled = await openTauriOAuth(provider);
+      if (handled) {
+        toast({ title: "已打开浏览器", description: "请在浏览器中完成登录，登录后将自动返回应用" });
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Web: use Lovable Cloud OAuth
     const result = await lovable.auth.signInWithOAuth(provider, {
       redirect_uri: window.location.origin,
     });
@@ -85,6 +97,16 @@ const Auth = () => {
     }
     setLoading(false);
   };
+
+  // Auto-trigger OAuth when opened from desktop app with ?desktop=true&provider=xxx
+  useEffect(() => {
+    const isDesktop = searchParams.get("desktop") === "true";
+    const provider = searchParams.get("provider") as "google" | "apple" | null;
+    if (isDesktop && provider && !isTauri()) {
+      handleSocialLogin(provider);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="min-h-screen bg-background flex">
