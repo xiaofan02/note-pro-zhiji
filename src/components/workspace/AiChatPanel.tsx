@@ -6,6 +6,8 @@ import rehypeRaw from "rehype-raw";
 import { cn } from "@/lib/utils";
 import { useChatConversations } from "@/hooks/useChatConversations";
 import { getAiProviderSettings } from "@/lib/aiProviderSettings";
+import { useUserRole } from "@/hooks/useUserRole";
+import UpgradePrompt from "./UpgradePrompt";
 
 interface AiChatPanelProps {
   onSaveNote: (title: string, content: string, folderId?: string) => Promise<void>;
