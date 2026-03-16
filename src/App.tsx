@@ -29,6 +29,7 @@ const App = () => (
             <Route path="/admin" element={<Admin />} />
             <Route path="/upgrade" element={<Upgrade />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/desktop-auth-callback" element={<DesktopAuthCallback />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
