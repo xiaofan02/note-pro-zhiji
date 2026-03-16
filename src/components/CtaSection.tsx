@@ -13,7 +13,7 @@ const CtaSection = () => {
           准备好让 AI<br />帮你管理知识了吗？
         </h2>
         <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-          加入 10 万+ 用户，体验更聪明的笔记方式。免费开始，无需信用卡。
+          体验更聪明的笔记方式。免费开始，无需信用卡。
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <button onClick={() => navigate("/workspace")} className="px-8 py-3.5 text-base font-semibold bg-foreground text-primary-foreground rounded-full hover:opacity-90 transition-opacity shadow-lg flex items-center gap-2">
