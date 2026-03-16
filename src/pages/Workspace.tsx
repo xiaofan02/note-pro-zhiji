@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
-  Sparkles, FileText, LogOut, Plus, Search, Moon, Sun, User,
+  Sparkles, FileText, LogOut, Plus, Search, Moon, Sun, Crown,
   FolderPlus, Upload, ArrowLeftRight,
 } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import DataMigration from "@/components/workspace/DataMigration";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import { useNotes } from "@/hooks/useNotes";
 import { useTags } from "@/hooks/useTags";
@@ -18,6 +19,7 @@ import SettingsDialog from "@/components/workspace/SettingsDialog";
 import SidebarNoteItem from "@/components/workspace/SidebarNoteItem";
 import SidebarFolderTree from "@/components/workspace/SidebarFolderTree";
 import WorkspaceEmptyState from "@/components/workspace/WorkspaceEmptyState";
+import UserAvatar from "@/components/workspace/UserAvatar";
 import { useDocumentImport } from "@/hooks/useDocumentImport";
 import { getStorageSettings, setStorageSettings, StorageSettings, localNotesStorage } from "@/lib/localNotesStorage";
 import { useToast } from "@/hooks/use-toast";
@@ -25,6 +27,7 @@ import { cn } from "@/lib/utils";
 
 const Workspace = () => {
   const { user, loading: authLoading, signOut } = useAuth();
+  const { isPro, isAdmin } = useUserRole();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [storageSettings, setStorageSettingsState] = useState<StorageSettings>(getStorageSettings);
@@ -467,12 +470,29 @@ const Workspace = () => {
           {/* Bottom: user info + actions */}
           <div className="border-t border-border p-3 space-y-2 shrink-0">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                <User className="w-4 h-4 text-muted-foreground" />
+              <UserAvatar
+                displayName={user?.user_metadata?.full_name || user?.email?.split("@")[0]}
+                avatarUrl={user?.user_metadata?.avatar_url}
+                isPro={isPro}
+                size="md"
+              />
+              <div className="flex-1 min-w-0">
+                <span className="text-xs text-foreground truncate block">
+                  {user?.user_metadata?.full_name || user?.email?.split("@")[0]}
+                </span>
+                {isPro ? (
+                  <span className="text-[10px] text-primary font-medium flex items-center gap-0.5">
+                    <Crown className="w-2.5 h-2.5" /> Pro
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => navigate("/upgrade")}
+                    className="text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    升级 Pro →
+                  </button>
+                )}
               </div>
-              <span className="text-xs text-foreground truncate flex-1">
-                {user?.user_metadata?.full_name || user?.email?.split("@")[0]}
-              </span>
             </div>
             <div className="flex items-center gap-1">
               <Tooltip>
@@ -490,6 +510,16 @@ const Workspace = () => {
                 onStorageSettingsChange={handleStorageSettingsChange}
                 onMigrationComplete={refreshNotes}
               />
+              {isAdmin && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button onClick={() => navigate("/admin")} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                      <Sparkles className="w-4 h-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="text-xs">管理后台</TooltipContent>
+                </Tooltip>
+              )}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button onClick={handleSignOut} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">

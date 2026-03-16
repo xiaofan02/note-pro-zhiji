@@ -36,15 +36,12 @@ const UpgradePrompt = ({ open, onOpenChange, feature }: UpgradePromptProps) => {
               </li>
             ))}
           </ul>
-          <button
-            onClick={() => onOpenChange(false)}
-            className="w-full h-10 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity"
+          <a
+            href="/upgrade"
+            className="block w-full h-10 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity text-center leading-10"
           >
-            了解升级方案
-          </button>
-          <p className="text-[11px] text-muted-foreground text-center">
-            支付功能即将上线，敬请期待
-          </p>
+            查看升级方案
+          </a>
         </div>
       </DialogContent>
     </Dialog>

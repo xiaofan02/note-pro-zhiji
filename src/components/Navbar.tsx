@@ -1,9 +1,12 @@
-import { Sparkles, Mic, Brain, Search, FileText, Monitor, LogOut, User } from "lucide-react";
+import { Sparkles, Mic, Brain, Search, FileText, Monitor, LogOut } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
+import UserAvatar from "@/components/workspace/UserAvatar";
 
 const Navbar = () => {
   const { user, loading, signOut } = useAuth();
+  const { isPro } = useUserRole();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -41,9 +44,12 @@ const Navbar = () => {
           {loading ? null : user ? (
             <>
               <div className="flex items-center gap-2 text-sm text-foreground">
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                  <User className="w-4 h-4 text-muted-foreground" />
-                </div>
+                <UserAvatar
+                  displayName={user.user_metadata?.full_name || user.email?.split("@")[0]}
+                  avatarUrl={user.user_metadata?.avatar_url}
+                  isPro={isPro}
+                  size="md"
+                />
                 <span className="hidden sm:inline max-w-[120px] truncate">
                   {user.user_metadata?.full_name || user.email?.split("@")[0]}
                 </span>
