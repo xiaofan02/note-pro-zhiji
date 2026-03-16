@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 
 const Workspace = () => {
   const { user, loading: authLoading, signOut } = useAuth();
+  const { isPro, isAdmin } = useUserRole();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [storageSettings, setStorageSettingsState] = useState<StorageSettings>(getStorageSettings);
