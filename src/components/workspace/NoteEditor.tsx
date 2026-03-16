@@ -41,11 +41,13 @@ interface NoteEditorProps {
 
 const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onRemoveTag, pageFontSize }: NoteEditorProps) => {
   const { user } = useAuth();
+  const { isPro } = useUserRole();
   const [title, setTitle] = useState(note.title);
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const skipNextUpdate = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
   const fileInputRef = useRef<HTMLInputElement>(null);
