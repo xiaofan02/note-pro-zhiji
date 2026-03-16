@@ -79,7 +79,6 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
       TiptapImage.configure({ inline: false }),
       Highlight.configure({ multicolor: true }),
       TextStyle,
-      FontSize,
       Color,
       TaskList,
       TaskItem.configure({ nested: true }),
