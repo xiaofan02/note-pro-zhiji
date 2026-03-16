@@ -20,79 +20,10 @@ import TaskItem from "@tiptap/extension-task-item";
 import Placeholder from "@tiptap/extension-placeholder";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
-import TagManager from "./TagManager";
 import EditorToolbar from "./EditorToolbar";
 import CodeBlockComponent from "./CodeBlockComponent";
 
 const lowlight = createLowlight(common);
-
-interface TagManagerProps {
-  tags: Tag[];
-  noteTags: Tag[];
-  onCreateTag: (name: string) => Promise<any>;
-  onAddTag: (noteId: string, tagId: string) => void;
-  onRemoveTag: (noteId: string, tagId: string) => void;
-  onClose: () => void;
-}
-
-const TagManagerModal = ({ tags, noteTags, onCreateTag, onAddTag, onRemoveTag, onClose }: TagManagerProps) => {
-  const [newTagName, setNewTagName] = useState("");
-
-  const handleCreateTag = async () => {
-    if (!newTagName.trim()) return;
-    await onCreateTag(newTagName);
-    setNewTagName("");
-  };
-
-  return (
-    <div className="fixed top-0 left-0 w-full h-full bg-black/50 z-50 flex items-center justify-center">
-      <div className="bg-card rounded-lg shadow-lg p-6 w-full max-w-md">
-        <h2 className="text-lg font-semibold mb-4">管理标签</h2>
-
-        <div className="flex items-center mb-3">
-          <input
-            type="text"
-            placeholder="新标签名称"
-            value={newTagName}
-            onChange={(e) => setNewTagName(e.target.value)}
-            className="flex-1 border border-input bg-background rounded-md px-3 py-2 mr-2"
-          />
-          <button onClick={handleCreateTag} className="bg-primary text-primary-foreground rounded-md px-4 py-2">
-            创建
-          </button>
-        </div>
-
-        <div className="max-h-48 overflow-y-auto">
-          {tags.map((tag) => {
-            const isSelected = noteTags.some((t) => t.id === tag.id);
-            return (
-              <div key={tag.id} className="flex items-center justify-between py-2">
-                <span>{tag.name}</span>
-                <button
-                  onClick={() => {
-                    if (isSelected) onRemoveTag(tag.note_id, tag.id);
-                    else onAddTag(tag.note_id, tag.id);
-                  }}
-                  className={`px-3 py-1 rounded-md text-sm ${
-                    isSelected ? "bg-destructive text-destructive-foreground" : "bg-accent text-accent-foreground"
-                  }`}
-                >
-                  {isSelected ? "移除" : "添加"}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="mt-4 flex justify-end">
-          <button onClick={onClose} className="bg-muted text-foreground rounded-md px-4 py-2">
-            关闭
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 interface NoteEditorProps {
   note: Note;
@@ -118,7 +49,6 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const [showTagManager, setShowTagManager] = useState(false);
 
   const debouncedSave = useCallback(
     (newTitle: string, newContent: string) => {
@@ -263,9 +193,6 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
           <span className="text-xs text-muted-foreground shrink-0">
             {new Date(note.updated_at).toLocaleString("zh-CN")}
           </span>
-          <button onClick={() => setShowTagManager(true)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors">
-            标签
-          </button>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {voiceSupported && (
@@ -312,17 +239,6 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
         <EditorContent editor={editor} className="tiptap-editor" />
       </div>
       <UpgradePrompt open={showUpgrade} onOpenChange={setShowUpgrade} feature="AI 功能" />
-
-      {showTagManager && (
-        <TagManagerModal
-          tags={tags}
-          noteTags={noteTags}
-          onCreateTag={onCreateTag}
-          onAddTag={onAddTag}
-          onRemoveTag={onRemoveTag}
-          onClose={() => setShowTagManager(false)}
-        />
-      )}
     </div>
   );
 };
