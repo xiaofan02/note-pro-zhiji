@@ -10,6 +10,7 @@ import Workspace from "./pages/Workspace.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import Admin from "./pages/Admin.tsx";
+import Upgrade from "./pages/Upgrade.tsx";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/workspace" element={<Workspace />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/upgrade" element={<Upgrade />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

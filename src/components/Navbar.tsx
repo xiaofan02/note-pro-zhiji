@@ -44,9 +44,12 @@ const Navbar = () => {
           {loading ? null : user ? (
             <>
               <div className="flex items-center gap-2 text-sm text-foreground">
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                  <User className="w-4 h-4 text-muted-foreground" />
-                </div>
+                <UserAvatar
+                  displayName={user.user_metadata?.full_name || user.email?.split("@")[0]}
+                  avatarUrl={user.user_metadata?.avatar_url}
+                  isPro={isPro}
+                  size="md"
+                />
                 <span className="hidden sm:inline max-w-[120px] truncate">
                   {user.user_metadata?.full_name || user.email?.split("@")[0]}
                 </span>

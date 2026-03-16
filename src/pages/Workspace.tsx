@@ -470,12 +470,29 @@ const Workspace = () => {
           {/* Bottom: user info + actions */}
           <div className="border-t border-border p-3 space-y-2 shrink-0">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                <User className="w-4 h-4 text-muted-foreground" />
+              <UserAvatar
+                displayName={user?.user_metadata?.full_name || user?.email?.split("@")[0]}
+                avatarUrl={user?.user_metadata?.avatar_url}
+                isPro={isPro}
+                size="md"
+              />
+              <div className="flex-1 min-w-0">
+                <span className="text-xs text-foreground truncate block">
+                  {user?.user_metadata?.full_name || user?.email?.split("@")[0]}
+                </span>
+                {isPro ? (
+                  <span className="text-[10px] text-primary font-medium flex items-center gap-0.5">
+                    <Crown className="w-2.5 h-2.5" /> Pro
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => navigate("/upgrade")}
+                    className="text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    升级 Pro →
+                  </button>
+                )}
               </div>
-              <span className="text-xs text-foreground truncate flex-1">
-                {user?.user_metadata?.full_name || user?.email?.split("@")[0]}
-              </span>
             </div>
             <div className="flex items-center gap-1">
               <Tooltip>
