@@ -125,6 +125,10 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   });
 
   const handleVoiceToggle = () => {
+    if (!isPro) {
+      setShowUpgrade(true);
+      return;
+    }
     if (isListening) stopListening();
     else startListening();
   };
