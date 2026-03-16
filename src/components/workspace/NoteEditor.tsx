@@ -331,6 +331,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
         />
         <EditorContent editor={editor} className="tiptap-editor" />
       </div>
+      <UpgradePrompt open={showUpgrade} onOpenChange={setShowUpgrade} feature="AI 功能" />
     </div>
   );
 };
