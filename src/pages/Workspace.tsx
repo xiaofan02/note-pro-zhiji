@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
-  Sparkles, FileText, LogOut, Plus, Search, Moon, Sun, User,
+  Sparkles, FileText, LogOut, Plus, Search, Moon, Sun, Crown,
   FolderPlus, Upload, ArrowLeftRight,
 } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import DataMigration from "@/components/workspace/DataMigration";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import { useNotes } from "@/hooks/useNotes";
 import { useTags } from "@/hooks/useTags";
@@ -18,6 +19,7 @@ import SettingsDialog from "@/components/workspace/SettingsDialog";
 import SidebarNoteItem from "@/components/workspace/SidebarNoteItem";
 import SidebarFolderTree from "@/components/workspace/SidebarFolderTree";
 import WorkspaceEmptyState from "@/components/workspace/WorkspaceEmptyState";
+import UserAvatar from "@/components/workspace/UserAvatar";
 import { useDocumentImport } from "@/hooks/useDocumentImport";
 import { getStorageSettings, setStorageSettings, StorageSettings, localNotesStorage } from "@/lib/localNotesStorage";
 import { useToast } from "@/hooks/use-toast";
