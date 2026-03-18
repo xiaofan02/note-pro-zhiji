@@ -53,7 +53,7 @@ interface NoteEditorProps {
   onImportFile?: () => void;
 }
 
-const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onRemoveTag, pageFontSize, onTogglePin, onToggleShare }: NoteEditorProps) => {
+const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onRemoveTag, pageFontSize, onTogglePin, onToggleShare, onImportFile }: NoteEditorProps) => {
   const { user } = useAuth();
   const { isPro } = useUserRole();
   const [title, setTitle] = useState(note.title);
