@@ -245,6 +245,85 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
     handleAiAction(action, selectedText);
   };
 
+  // Export functions
+  const exportAs = (format: "markdown" | "html" | "txt") => {
+    if (!editor) return;
+    const html = editor.getHTML();
+    let content: string;
+    let ext: string;
+    let mime: string;
+
+    if (format === "html") {
+      content = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title></head><body>${html}</body></html>`;
+      ext = "html";
+      mime = "text/html";
+    } else if (format === "txt") {
+      content = editor.getText();
+      ext = "txt";
+      mime = "text/plain";
+    } else {
+      // Simple HTML to Markdown conversion
+      content = html
+        .replace(/<h1[^>]*>(.*?)<\/h1>/gi, "# $1\n\n")
+        .replace(/<h2[^>]*>(.*?)<\/h2>/gi, "## $1\n\n")
+        .replace(/<h3[^>]*>(.*?)<\/h3>/gi, "### $1\n\n")
+        .replace(/<strong>(.*?)<\/strong>/gi, "**$1**")
+        .replace(/<em>(.*?)<\/em>/gi, "*$1*")
+        .replace(/<li[^>]*>(.*?)<\/li>/gi, "- $1\n")
+        .replace(/<blockquote[^>]*><p>(.*?)<\/p><\/blockquote>/gi, "> $1\n\n")
+        .replace(/<p>(.*?)<\/p>/gi, "$1\n\n")
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<[^>]*>/g, "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+      ext = "md";
+      mime = "text/markdown";
+    }
+
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${title || "笔记"}.${ext}`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "导出成功", description: `已导出为 .${ext} 格式` });
+  };
+
+  // Share
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (note.share_token) {
+      setShareUrl(`${window.location.origin}/s/${note.share_token}`);
+    } else {
+      setShareUrl(null);
+    }
+  }, [note.share_token, note.id]);
+
+  const handleShare = async () => {
+    if (!onToggleShare) return;
+    const token = await onToggleShare(note.id);
+    if (token) {
+      const url = `${window.location.origin}/s/${token}`;
+      setShareUrl(url);
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } else {
+      setShareUrl(null);
+    }
+  };
+
+  const copyShareUrl = async () => {
+    if (!shareUrl) return;
+    await navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    toast({ title: "已复制分享链接" });
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full">
       <input type="file" ref={fileInputRef} className="hidden" accept="image/png,image/jpeg,image/gif,image/webp" onChange={handleFileSelect} />
