@@ -82,6 +82,13 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }
+  /* Elegant border defaults */
+  input, textarea, select, [role="combobox"] {
+    @apply transition-all duration-200;
+  }
+  input:focus, textarea:focus, select:focus {
+    box-shadow: 0 0 0 3px hsl(210 78% 56% / 0.1);
+  }
 }
 
 /* Global page font scaling via CSS variable --page-font-scale */
