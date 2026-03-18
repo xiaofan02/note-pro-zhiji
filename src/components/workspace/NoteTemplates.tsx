@@ -182,6 +182,52 @@ const templates: NoteTemplate[] = [
 <p><strong>—— END ——</strong></p>
 <p>如果觉得有帮助，欢迎<strong>点赞、在看、转发</strong>三连 🙏</p>`,
   },
+  {
+    id: "xiaohongshu",
+    name: "小红书笔记",
+    icon: <Heart className="w-4 h-4" />,
+    title: "小红书笔记",
+    content: `<h1>📌 标题｜关键词1｜关键词2</h1>
+<p>封面图描述：</p>
+<h2>正文</h2>
+<p>开头吸引（痛点/共鸣/反差）👇</p>
+<p></p>
+<p>✅ 要点一：</p>
+<p>✅ 要点二：</p>
+<p>✅ 要点三：</p>
+<p>✅ 要点四：</p>
+<p>✅ 要点五：</p>
+<p></p>
+<p>💬 总结/号召互动</p>
+<p></p>
+<p>—</p>
+<p>#话题标签1 #话题标签2 #话题标签3</p>`,
+  },
+  {
+    id: "zhihu",
+    name: "知乎回答",
+    icon: <MessageCircle className="w-4 h-4" />,
+    title: "知乎回答",
+    content: `<h2>问题</h2>
+<blockquote><p>在此粘贴知乎问题</p></blockquote>
+<h2>回答</h2>
+<p><strong>先说结论：</strong></p>
+<p></p>
+<h3>一、背景分析</h3>
+<p></p>
+<h3>二、核心观点</h3>
+<p></p>
+<h3>三、论据与案例</h3>
+<ol>
+<li></li>
+<li></li>
+<li></li>
+</ol>
+<h3>四、总结</h3>
+<p></p>
+<p>—</p>
+<p>以上，希望对你有帮助。觉得有用的话，点个赞同👍再走吧～</p>`,
+  },
 ];
 
 interface NoteTemplatesProps {
