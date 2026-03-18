@@ -1,20 +1,46 @@
 # Smart Note AI — Intelligent Note-Taking Assistant
 
-An AI-powered smart note-taking app that helps you efficiently capture, organize, and retrieve knowledge.
+A full-featured AI-powered note-taking application that helps you efficiently capture, organize, and retrieve knowledge.
 
 ## ✨ Key Features
 
-- **Rich Text Editor** — Headings, lists, code blocks, images, task lists, and more
-- **AI Organize** — One-click note restructuring for clearer content
-- **AI Summary** — Instantly generate note summaries and extract key information
-- **AI Chat** — Chat with AI about your note content for deeper understanding
-- **Voice Notes** — Speech-to-text for hands-free note capture
-- **Folder Management** — Hierarchical folder organization with drag-and-drop
-- **Tag System** — Multi-tag classification for flexible note management
-- **Document Import** — Import .txt, .md, .docx, .html, .csv, .json, and more
-- **Image Support** — Paste or upload images directly into notes
-- **Search** — Quickly search across all notes
-- **Dark Mode** — Light and dark theme support
+### 📝 Editor
+- **Tiptap Rich Text Editor** — Headings, lists, code blocks, images, task lists, blockquotes, and more
+- **Enhanced Code Blocks** — Syntax highlighting, auto language detection (20+ languages), one-click copy
+- **Code Execution** — Run Python (Pyodide WASM) and JavaScript/HTML/CSS directly in notes
+- **Image Support** — Paste or upload images with cloud storage
+- **Auto-Save** — Debounced real-time saving
+
+### 🤖 AI Capabilities
+- **AI Organize** — One-click note restructuring into structured HTML
+- **AI Summary** — Extract core information instantly
+- **AI Selection Editing** — Rewrite, polish, expand, or continue selected text
+- **AI Chat Assistant** — Persistent conversations based on note content with history management
+- **AI Note Generation** — Automatically generate structured notes from conversations
+
+### 🎤 Voice & Input
+- **Voice Notes** — Real-time speech-to-text (Web Speech API)
+
+### 📂 Organization
+- **Nested Folders** — Multi-level folder hierarchy with drag-and-drop
+- **Pin Notes** — Pin important notes to the top
+- **Note Templates** — Pre-built templates for quick note creation
+- **Trash Bin** — Recover or permanently delete notes
+- **Search** — Real-time search across titles and content
+
+### 📤 Import & Export
+- **Multi-Format Import** — TXT, Markdown, HTML, CSV, DOCX, JSON, XML, RTF, and 20+ code file formats
+- **Multi-Format Export** — Markdown, HTML, Plain Text, Word (DOCX), CSV, JSON, XML, RTF, Log, and 15+ code formats
+- **Data Migration** — Bi-directional sync between cloud and local storage
+
+### 🔗 Sharing
+- **Public Sharing** — Generate unique share links, viewable without login
+
+### 🎨 UI & Experience
+- **Dark / Light Mode** — One-click theme switching
+- **Font Size Control** — Adjustable editor font size
+- **PWA Support** — Installable as desktop/mobile app with one-click updates
+- **Responsive Layout** — Optimized for desktop and mobile
 
 ## 🚀 Getting Started
 
@@ -27,9 +53,7 @@ Visit the deployed URL and sign up to start using the app.
 ```bash
 # Clone the repository
 git clone <repository-url>
-
-# Navigate to the project directory
-cd <project-name>
+cd <project-directory>
 
 # Install dependencies
 npm install
@@ -38,30 +62,89 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173` in your browser.
+Open `http://localhost:8080` in your browser.
 
 ## 📖 Usage Guide
 
 1. **Sign Up / Log In** — Create an account with your email
-2. **Create Notes** — Click the "+" button in the sidebar to create a new note
+2. **Create Notes** — Click "New Note" in the sidebar, or use templates
 3. **Edit Notes** — Use the toolbar for rich text editing with Markdown shortcuts
-4. **AI Features** — Click "AI Organize" or "AI Summary" buttons for AI-powered assistance
-5. **AI Chat** — Open the AI panel on the right to chat about your notes
-6. **Voice Input** — Click the voice button to start speech-to-text input
-7. **Folders** — Create folders in the sidebar and drag notes to organize them
-8. **Import Documents** — Click the import button to import various document formats
+4. **AI Features** — Click "Organize" or "Summarize" buttons; select text for rewrite, polish, etc.
+5. **AI Chat** — Click the "AI Assistant" bubble at the bottom right for context-aware conversations
+6. **Voice Input** — Click the "Voice" button for speech-to-text
+7. **Run Code** — Write code in a code block and click "Run"
+8. **Folders** — Create folders in the sidebar and drag notes to organize
+9. **Import / Export** — Use the import/export buttons in the editor toolbar
+10. **Share** — Click "Share" to generate a public link
+11. **Update App** — Click the update button at the bottom of the sidebar
+
+## 🖥 Desktop App (Tauri v2)
+
+Package Smart Note AI as a native Windows / macOS / Linux desktop application.
+
+### Prerequisites
+
+1. **Node.js** ≥ 18
+2. **Rust** — Install from [https://rustup.rs](https://rustup.rs/)
+3. **System Dependencies** (Linux only):
+   ```bash
+   sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+   ```
+4. **Python 3** (for local Python execution)
+
+### Build Steps
+
+```bash
+# Install Tauri CLI
+npm install -D @tauri-apps/cli@latest
+
+# Initialize Tauri
+npx tauri init
+
+# Add Shell plugin (local Python support)
+npm install @tauri-apps/plugin-shell
+
+# Development mode
+npx tauri dev
+
+# Build installer
+npx tauri build
+```
+
+Desktop-specific features:
+- Uses local `python3` for code execution, supporting all third-party libraries (numpy, pandas, etc.)
+- Web version continues using Pyodide (in-browser WASM)
+
+| Platform | Package Format |
+|----------|---------------|
+| Windows | `.msi` / `.exe` |
+| macOS | `.dmg` / `.app` |
+| Linux | `.deb` / `.AppImage` |
 
 ## 🛠 Tech Stack
 
-- **Frontend** — React + TypeScript + Vite
-- **UI** — Tailwind CSS + shadcn/ui
-- **Editor** — Tiptap Rich Text Editor
-- **Backend** — Lovable Cloud (Database, Auth, Storage, Edge Functions)
-- **AI** — Integrated AI models for note organization and chat
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18 + TypeScript + Vite |
+| UI | Tailwind CSS + shadcn/ui |
+| Editor | Tiptap v2 + CodeBlockLowlight |
+| Backend | Lovable Cloud (Database, Auth, Storage, Edge Functions) |
+| AI | Lovable AI (Gemini models) |
+| Code Execution | Pyodide (Python WASM) + Sandboxed iframe (JS/HTML/CSS) |
+| Desktop | Tauri v2 (optional) |
+| PWA | vite-plugin-pwa + Service Worker |
+
+## 🗺 Roadmap
+
+- [ ] SSH Remote Execution — Connect to and manage real devices from notes
+- [ ] AI Automation Scripts — AI generates and executes automation scripts from note content
+- [ ] Native Mobile Apps — iOS/Android via Capacitor
+- [ ] Knowledge Graph — Visual note relationship mapping
+- [ ] Version History — View and restore previous note versions
 
 ## 🙏 Acknowledgments
 
-This project was inspired by [Get笔记 (GetBNote)](https://getbnote.com). While using Get笔记, I was impressed by its excellent design, but found that it didn't fully meet my specific needs. I built Smart Note AI by drawing on Get笔记's strengths and extending it with additional features tailored to my own workflow. Many thanks to the Get笔记 team for the inspiration!
+This project was inspired by [Get笔记 (GetBNote)](https://getbnote.com). While using Get笔记, I was impressed by its excellent design but found it didn't fully meet my specific needs. I built Smart Note AI by drawing on Get笔记's strengths and extending it significantly with features like deep AI integration, nested folders, code execution, SSH planning, and more. Many thanks to the Get笔记 team for the inspiration!
 
 ## 📄 License
 
