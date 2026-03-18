@@ -48,6 +48,8 @@ interface NoteEditorProps {
   onAddTag: (noteId: string, tagId: string) => void;
   onRemoveTag: (noteId: string, tagId: string) => void;
   pageFontSize: number;
+  onTogglePin?: (id: string) => void;
+  onToggleShare?: (id: string) => Promise<string | null>;
 }
 
 const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onRemoveTag, pageFontSize }: NoteEditorProps) => {
