@@ -12,6 +12,8 @@ export interface Note {
   created_at: string;
   updated_at: string;
   deleted_at?: string | null;
+  is_pinned?: boolean;
+  share_token?: string | null;
 }
 
 export const useNotes = (storageSettings?: StorageSettings) => {
