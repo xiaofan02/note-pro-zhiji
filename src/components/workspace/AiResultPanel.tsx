@@ -20,6 +20,8 @@ const typeLabels: Record<string, string> = {
   summarize: "AI 摘要",
   rewrite: "AI 改写结果",
   continue: "AI 续写结果",
+  polish: "AI 润色结果",
+  expand: "AI 扩写结果",
 };
 
 const AiResultPanel = ({ result, type, onAppend, onReplace, onClose }: AiResultPanelProps) => {
