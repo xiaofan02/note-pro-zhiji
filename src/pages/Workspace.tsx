@@ -21,6 +21,7 @@ import SidebarFolderTree from "@/components/workspace/SidebarFolderTree";
 import WorkspaceEmptyState from "@/components/workspace/WorkspaceEmptyState";
 import UserAvatar from "@/components/workspace/UserAvatar";
 import TrashBin from "@/components/workspace/TrashBin";
+import NoteTemplates from "@/components/workspace/NoteTemplates";
 import { useDocumentImport } from "@/hooks/useDocumentImport";
 import { getStorageSettings, setStorageSettings, StorageSettings, localNotesStorage } from "@/lib/localNotesStorage";
 import { useToast } from "@/hooks/use-toast";
@@ -207,6 +208,29 @@ const Workspace = () => {
     if (activeFolderId) setExpandedFolders((prev) => new Set(prev).add(activeFolderId));
   }, [createNote, activeFolderId]);
 
+  const handleCreateFromTemplate = useCallback(async (title: string, content: string) => {
+    if (!user) return;
+    if (storageSettings.mode === "local") {
+      const now = new Date().toISOString();
+      const note = {
+        id: crypto.randomUUID(), title, content,
+        folder_id: activeFolderId || null, created_at: now, updated_at: now,
+      };
+      await localNotesStorage.save(note, storageSettings.localPath);
+      await refreshNotes();
+      setActiveNoteId(note.id);
+    } else {
+      const { data, error } = await supabase
+        .from("notes")
+        .insert({ user_id: user.id, title, content, folder_id: activeFolderId || null })
+        .select("id, title, content, folder_id, created_at, updated_at")
+        .single();
+      if (!error && data) { await refreshNotes(); setActiveNoteId(data.id); }
+    }
+    if (activeFolderId) setExpandedFolders((prev) => new Set(prev).add(activeFolderId));
+    toast({ title: "已创建", description: `从模板创建「${title}」` });
+  }, [user, storageSettings, activeFolderId, refreshNotes, setActiveNoteId, toast]);
+
   const handleSelectNote = useCallback((id: string, folderId: string | null) => {
     setActiveNoteId(id);
     setActiveFolderId(folderId);
@@ -339,6 +363,7 @@ const Workspace = () => {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs">导入文档</TooltipContent>
             </Tooltip>
+            <NoteTemplates onCreateFromTemplate={handleCreateFromTemplate} />
             <Sheet>
               <Tooltip>
                 <TooltipTrigger asChild>
