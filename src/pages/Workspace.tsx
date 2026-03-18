@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import { useNavigate, Link } from "react-router-dom";
 import {
   Sparkles, FileText, LogOut, Plus, Search, Moon, Sun, Crown,
-  FolderPlus, Upload, ArrowLeftRight, PanelLeftClose, PanelLeftOpen, Menu, X,
+  FolderPlus, ArrowLeftRight, PanelLeftClose, PanelLeftOpen, Menu, X,
 } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -350,14 +350,6 @@ const Workspace = () => {
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-xs">新建目录</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button onClick={() => importInputRef.current?.click()} className="px-2 py-2 rounded-lg bg-accent text-accent-foreground hover:bg-accent/80 transition-colors shrink-0">
-              <Upload className="w-4 h-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-xs">导入文档</TooltipContent>
         </Tooltip>
         <NoteTemplates onCreateFromTemplate={handleCreateFromTemplate} />
         <Sheet>
@@ -724,17 +716,6 @@ const Workspace = () => {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
-                        onClick={() => importInputRef.current?.click()}
-                        className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                      >
-                        <Upload className="w-4 h-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="text-xs">导入文档</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
                         onClick={() => setSearchQuery("")}
                         className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                       >
@@ -778,6 +759,7 @@ const Workspace = () => {
                     pageFontSize={pageFontSize}
                     onTogglePin={togglePin}
                     onToggleShare={toggleShare}
+                    onImportFile={() => importInputRef.current?.click()}
                   />
                 ) : (
                   <WorkspaceEmptyState onCreateNote={handleNewNote} />

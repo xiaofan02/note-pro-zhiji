@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Note } from "@/hooks/useNotes";
 import { Tag } from "@/hooks/useTags";
-import { Save, Sparkles, FileText, Loader2, Mic, Download, Share2, Link2, Pin, PinOff, Check, Copy } from "lucide-react";
+import { Save, Sparkles, FileText, Loader2, Mic, Download, Upload, Share2, Link2, Pin, PinOff, Check, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
@@ -50,9 +50,10 @@ interface NoteEditorProps {
   pageFontSize: number;
   onTogglePin?: (id: string) => void;
   onToggleShare?: (id: string) => Promise<string | null>;
+  onImportFile?: () => void;
 }
 
-const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onRemoveTag, pageFontSize, onTogglePin, onToggleShare }: NoteEditorProps) => {
+const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onRemoveTag, pageFontSize, onTogglePin, onToggleShare, onImportFile }: NoteEditorProps) => {
   const { user } = useAuth();
   const { isPro } = useUserRole();
   const [title, setTitle] = useState(note.title);
@@ -353,17 +354,28 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
             {aiLoading === "summarize" ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />} 总结
           </button>
 
-          {/* Export */}
+          {/* Import / Export */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors">
-                <Download className="w-3 h-3" /> 导出
+                <Download className="w-3 h-3" /> 导入/导出
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => exportAs("markdown")}>导出为 Markdown</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("html")}>导出为 HTML</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("txt")}>导出为纯文本</DropdownMenuItem>
+              {onImportFile && (
+                <DropdownMenuItem onClick={onImportFile}>
+                  <Upload className="w-3.5 h-3.5 mr-1.5" /> 导入文档
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={() => exportAs("markdown")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> 导出为 Markdown
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("html")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> 导出为 HTML
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("txt")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> 导出为纯文本
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
