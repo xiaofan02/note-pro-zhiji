@@ -462,6 +462,52 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
               <DropdownMenuItem onClick={() => exportAs("log")}>
                 <Download className="w-3.5 h-3.5 mr-1.5" /> Log (.log)
               </DropdownMenuItem>
+              <div className="px-2 py-1.5 text-xs text-muted-foreground font-medium">代码文件</div>
+              <DropdownMenuItem onClick={() => exportAs("js")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> JavaScript (.js)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("ts")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> TypeScript (.ts)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("py")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> Python (.py)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("java")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> Java (.java)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("cpp")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> C/C++ (.cpp)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("go")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> Go (.go)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("rs")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> Rust (.rs)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("sql")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> SQL (.sql)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("sh")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> Shell (.sh)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("css")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> CSS (.css)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("yaml")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> YAML (.yaml)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("php")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> PHP (.php)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("rb")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> Ruby (.rb)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("swift")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> Swift (.swift)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("kt")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> Kotlin (.kt)
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 

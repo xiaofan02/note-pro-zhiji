@@ -141,8 +141,15 @@ async function parseFile(file: File): Promise<{ title: string; content: string }
       const text = await readFileAsText(file);
       return { title, content: textToHtml(text) };
     }
-    default:
+    default: {
+      // Check if it's a code file
+      const lang = CODE_EXTENSIONS[ext];
+      if (lang) {
+        const code = await readFileAsText(file);
+        return { title, content: `<pre><code class="language-${lang}">${code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code></pre>` };
+      }
       throw new Error(`不支持的文件格式: ${ext}`);
+    }
   }
 }
 
