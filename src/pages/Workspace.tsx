@@ -26,6 +26,7 @@ import { getStorageSettings, setStorageSettings, StorageSettings, localNotesStor
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { usePwaUpdate } from "@/hooks/usePwaUpdate";
 
 const Workspace = () => {
   const { user, loading: authLoading, signOut } = useAuth();
