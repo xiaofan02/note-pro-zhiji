@@ -647,50 +647,116 @@ const Workspace = () => {
             {/* Desktop sidebar */}
             <aside
               className={cn(
-                "border-r border-border bg-card flex flex-col h-full shrink-0 transition-all duration-300",
-                sidebarCollapsed ? "w-0 overflow-hidden" : "w-72"
+                "border-r border-border bg-card flex flex-col h-full shrink-0 transition-all duration-300 overflow-hidden",
+                sidebarCollapsed ? "w-14" : "w-72"
               )}
             >
-              {/* Logo + collapse button */}
-              <div className="h-13 border-b border-border flex items-center justify-between px-5 shrink-0">
-                <Link to="/" className="flex items-center gap-2.5 group">
-                  <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-                    <Sparkles className="w-4 h-4 text-primary-foreground" />
-                  </div>
-                  <span className="text-sm font-bold text-foreground tracking-tight">智记 AI</span>
-                </Link>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => setSidebarCollapsed(true)}
-                      className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                    >
-                      <PanelLeftClose className="w-4 h-4" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="text-xs">收起侧边栏</TooltipContent>
-                </Tooltip>
+              {/* Logo + collapse/expand button */}
+              <div className={cn(
+                "h-13 border-b border-border flex items-center shrink-0 transition-all duration-300",
+                sidebarCollapsed ? "justify-center px-2" : "justify-between px-5"
+              )}>
+                {sidebarCollapsed ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setSidebarCollapsed(false)}
+                        className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm hover:shadow-md transition-shadow"
+                      >
+                        <Sparkles className="w-4 h-4 text-primary-foreground" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="text-xs">展开侧边栏</TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <>
+                    <Link to="/" className="flex items-center gap-2.5 group">
+                      <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                        <Sparkles className="w-4 h-4 text-primary-foreground" />
+                      </div>
+                      <span className="text-sm font-bold text-foreground tracking-tight">智记 AI</span>
+                    </Link>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => setSidebarCollapsed(true)}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        >
+                          <PanelLeftClose className="w-4 h-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="text-xs">收起侧边栏</TooltipContent>
+                    </Tooltip>
+                  </>
+                )}
               </div>
 
-              {sidebarContent}
+              {/* Collapsed icon buttons */}
+              {sidebarCollapsed ? (
+                <div className="flex flex-col items-center gap-2 py-3">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={handleNewNote}
+                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity shadow-sm"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="text-xs">新建笔记</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => handleCreateFolder()}
+                        className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      >
+                        <FolderPlus className="w-4 h-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="text-xs">新建目录</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => importInputRef.current?.click()}
+                        className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      >
+                        <Upload className="w-4 h-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="text-xs">导入文档</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setSearchQuery("")}
+                        className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      >
+                        <Search className="w-4 h-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="text-xs">搜索笔记</TooltipContent>
+                  </Tooltip>
+
+                  <div className="w-8 border-t border-border my-1" />
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setSidebarCollapsed(false)}
+                        className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      >
+                        <PanelLeftOpen className="w-4 h-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="text-xs">展开侧边栏</TooltipContent>
+                  </Tooltip>
+                </div>
+              ) : (
+                sidebarContent
+              )}
             </aside>
-
-            {/* Collapsed sidebar expand button */}
-            {sidebarCollapsed && (
-              <div className="flex flex-col items-center py-3 px-1 border-r border-border bg-card shrink-0">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => setSidebarCollapsed(false)}
-                      className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                    >
-                      <PanelLeftOpen className="w-4 h-4" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="text-xs">展开侧边栏</TooltipContent>
-                </Tooltip>
-              </div>
-            )}
 
             {/* Desktop editor area */}
             <main className="flex-1 flex bg-section-alt min-w-0">
