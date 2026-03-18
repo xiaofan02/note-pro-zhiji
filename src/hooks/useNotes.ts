@@ -42,8 +42,9 @@ export const useNotes = (storageSettings?: StorageSettings) => {
       // Fetch active notes
       const { data, error } = await supabase
         .from("notes")
-        .select("id, title, content, folder_id, created_at, updated_at, deleted_at")
+        .select("id, title, content, folder_id, created_at, updated_at, deleted_at, is_pinned, share_token")
         .is("deleted_at", null)
+        .order("is_pinned", { ascending: false })
         .order("updated_at", { ascending: false });
 
       if (error) {
