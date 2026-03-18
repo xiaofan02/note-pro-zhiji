@@ -24,6 +24,9 @@ import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
 import EditorToolbar from "./EditorToolbar";
 import CodeBlockComponent from "./CodeBlockComponent";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const lowlight = createLowlight(common);
 
