@@ -10,7 +10,6 @@
     "beforeBuildCommand": "npm run build"
   },
   "app": {
-    "title": "智记AI",
     "windows": [
       {
         "title": "智记AI",
