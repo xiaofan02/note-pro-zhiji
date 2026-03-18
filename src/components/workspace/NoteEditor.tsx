@@ -52,7 +52,7 @@ interface NoteEditorProps {
   onToggleShare?: (id: string) => Promise<string | null>;
 }
 
-const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onRemoveTag, pageFontSize }: NoteEditorProps) => {
+const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onRemoveTag, pageFontSize, onTogglePin, onToggleShare }: NoteEditorProps) => {
   const { user } = useAuth();
   const { isPro } = useUserRole();
   const [title, setTitle] = useState(note.title);
