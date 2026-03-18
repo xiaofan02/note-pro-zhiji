@@ -56,7 +56,7 @@ export const useNotes = (storageSettings?: StorageSettings) => {
       // Fetch trashed notes
       const { data: trashed, error: trashError } = await supabase
         .from("notes")
-        .select("id, title, content, folder_id, created_at, updated_at, deleted_at")
+        .select("id, title, content, folder_id, created_at, updated_at, deleted_at, is_pinned, share_token")
         .not("deleted_at", "is", null)
         .order("deleted_at", { ascending: false });
 
