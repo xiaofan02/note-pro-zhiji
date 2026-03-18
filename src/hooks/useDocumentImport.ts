@@ -3,8 +3,24 @@ import { useToast } from "@/hooks/use-toast";
 
 const ACCEPTED_EXTENSIONS = [
   ".txt", ".md", ".markdown", ".html", ".htm", ".csv",
-  ".docx", ".doc", ".rtf", ".json", ".xml", ".log"
+  ".docx", ".doc", ".rtf", ".json", ".xml", ".log",
+  // Code files
+  ".js", ".jsx", ".ts", ".tsx", ".py", ".java", ".c", ".cpp", ".h", ".hpp",
+  ".go", ".rs", ".rb", ".php", ".swift", ".kt", ".sql", ".sh", ".bash",
+  ".css", ".scss", ".sass", ".less", ".yaml", ".yml", ".toml", ".ini",
+  ".r", ".lua", ".pl", ".dart", ".scala", ".vue", ".svelte",
 ];
+
+const CODE_EXTENSIONS: Record<string, string> = {
+  ".js": "javascript", ".jsx": "javascript", ".ts": "typescript", ".tsx": "typescript",
+  ".py": "python", ".java": "java", ".c": "c", ".cpp": "cpp", ".h": "c", ".hpp": "cpp",
+  ".go": "go", ".rs": "rust", ".rb": "ruby", ".php": "php", ".swift": "swift",
+  ".kt": "kotlin", ".sql": "sql", ".sh": "bash", ".bash": "bash",
+  ".css": "css", ".scss": "css", ".sass": "css", ".less": "css",
+  ".yaml": "yaml", ".yml": "yaml", ".toml": "yaml", ".ini": "yaml",
+  ".r": "r", ".lua": "lua", ".pl": "perl", ".dart": "dart", ".scala": "scala",
+  ".vue": "html", ".svelte": "html",
+};
 
 const ACCEPT_STRING = ACCEPTED_EXTENSIONS.join(",");
 
