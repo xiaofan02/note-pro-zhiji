@@ -167,7 +167,7 @@ const Auth = () => {
               <button
                 onClick={() => handleSocialLogin("google")}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-3 h-11 rounded-lg border border-border bg-background hover:bg-muted transition-colors text-sm font-medium"
+                className="w-full flex items-center justify-center gap-3 h-11 rounded-xl border border-border bg-background hover:bg-muted transition-all duration-200 text-sm font-medium hover:shadow-sm"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
@@ -180,7 +180,7 @@ const Auth = () => {
               <button
                 onClick={() => handleSocialLogin("apple")}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-3 h-11 rounded-lg border border-border bg-background hover:bg-muted transition-colors text-sm font-medium"
+                className="w-full flex items-center justify-center gap-3 h-11 rounded-xl border border-border bg-background hover:bg-muted transition-all duration-200 text-sm font-medium hover:shadow-sm"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
@@ -208,7 +208,7 @@ const Auth = () => {
                   placeholder="你的名字"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full h-11 pl-10 pr-4 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full h-11 pl-10 pr-4 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all duration-200"
                   required
                 />
               </div>
@@ -220,7 +220,7 @@ const Auth = () => {
                 placeholder="邮箱地址"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full h-11 pl-10 pr-4 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full h-11 pl-10 pr-4 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all duration-200"
                 required
               />
             </div>
@@ -232,7 +232,7 @@ const Auth = () => {
                   placeholder="密码"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-11 pl-10 pr-10 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full h-11 pl-10 pr-10 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all duration-200"
                   required
                   minLength={6}
                 />
@@ -261,7 +261,7 @@ const Auth = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-11 rounded-lg bg-foreground text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="w-full h-11 rounded-xl bg-foreground text-primary-foreground font-medium text-sm hover:opacity-90 transition-all duration-200 disabled:opacity-50 shadow-sm hover:shadow-md"
             >
               {loading ? "处理中..." : mode === "login" ? "登录" : mode === "register" ? "注册" : "发送重置链接"}
             </button>

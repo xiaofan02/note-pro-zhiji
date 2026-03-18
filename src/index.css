@@ -22,10 +22,10 @@
     --accent-foreground: 210 78% 40%;
     --destructive: 0 72% 58%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 10% 91%;
-    --input: 220 10% 91%;
+    --border: 220 12% 93%;
+    --input: 220 12% 90%;
     --ring: 210 78% 56%;
-    --radius: 0.625rem;
+    --radius: 0.75rem;
     --section-alt: 40 15% 96%;
 
     --sidebar-background: 0 0% 100%;
@@ -60,8 +60,8 @@
     --accent-foreground: 210 60% 75%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 95%;
-    --border: 220 15% 18%;
-    --input: 220 15% 18%;
+    --border: 220 12% 20%;
+    --input: 220 12% 20%;
     --ring: 210 78% 56%;
     --section-alt: 220 18% 10%;
     --sidebar-background: 220 18% 10%;
@@ -81,6 +81,13 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+  }
+  /* Elegant border defaults */
+  input, textarea, select, [role="combobox"] {
+    @apply transition-all duration-200;
+  }
+  input:focus, textarea:focus, select:focus {
+    box-shadow: 0 0 0 3px hsl(210 78% 56% / 0.1);
   }
 }
 
