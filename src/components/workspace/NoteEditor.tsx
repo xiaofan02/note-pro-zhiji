@@ -8,6 +8,8 @@ import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import UpgradePrompt from "./UpgradePrompt";
+import AiResultPanel from "./AiResultPanel";
+import AiSelectionToolbar from "./AiSelectionToolbar";
 import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TiptapLink from "@tiptap/extension-link";
@@ -24,6 +26,15 @@ import EditorToolbar from "./EditorToolbar";
 import CodeBlockComponent from "./CodeBlockComponent";
 
 const lowlight = createLowlight(common);
+
+type AiActionType = "organize" | "summarize" | "rewrite" | "continue" | "polish" | "expand";
+
+interface AiResult {
+  content: string;
+  type: AiActionType;
+  selectionFrom?: number;
+  selectionTo?: number;
+}
 
 interface NoteEditorProps {
   note: Note;
@@ -42,7 +53,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   const [title, setTitle] = useState(note.title);
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState<string | null>(null);
-  const [summary, setSummary] = useState<string | null>(null);
+  const [aiResult, setAiResult] = useState<AiResult | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const skipNextUpdate = useRef(false);
@@ -81,7 +92,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   useEffect(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     setTitle(note.title);
-    setSummary(null);
+    setAiResult(null);
     if (editor && editor.getHTML() !== note.content) {
       skipNextUpdate.current = true;
       editor.commands.setContent(note.content || "");
@@ -156,32 +167,77 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
     editor.view.props.handlePaste = handlePaste;
   }, [editor, user]);
 
-  const handleAiAction = async (action: "organize" | "summarize") => {
+  // Core AI action handler
+  const handleAiAction = async (action: AiActionType, selectedText?: string) => {
     if (!isPro) { setShowUpgrade(true); return; }
     if (!editor) return;
-    const content = editor.getHTML();
+
+    const content = selectedText || editor.getHTML();
     if (!content.trim() || content === "<p></p>") {
       toast({ title: "内容为空", description: "请先写点内容再使用 AI 功能", variant: "destructive" });
       return;
     }
+
+    // Store selection range for replacement actions
+    const selectionFrom = selectedText ? editor.state.selection.from : undefined;
+    const selectionTo = selectedText ? editor.state.selection.to : undefined;
+
     setAiLoading(action);
     try {
       const { data, error } = await supabase.functions.invoke("ai-notes", { body: { content, action } });
       if (error) throw error;
       if (data?.error) { toast({ title: "AI 错误", description: data.error, variant: "destructive" }); return; }
-      if (action === "organize") {
-        editor.commands.setContent(data.result);
-        await onUpdate(note.id, { content: data.result });
-        toast({ title: "整理完成", description: "笔记已被 AI 重新整理" });
-      } else {
-        setSummary(data.result);
-        toast({ title: "总结完成" });
-      }
+
+      // Show result in preview panel instead of directly applying
+      setAiResult({
+        content: data.result,
+        type: action,
+        selectionFrom,
+        selectionTo,
+      });
+      toast({ title: "AI 处理完成", description: "请预览结果并选择操作" });
     } catch (e: any) {
       toast({ title: "AI 请求失败", description: e.message, variant: "destructive" });
     } finally {
       setAiLoading(null);
     }
+  };
+
+  // Handle appending AI result to note
+  const handleAppendResult = async () => {
+    if (!aiResult || !editor) return;
+    const separator = '<hr><p></p>';
+    editor.chain().focus("end").insertContent(separator + aiResult.content).run();
+    await onUpdate(note.id, { content: editor.getHTML() });
+    setAiResult(null);
+    toast({ title: "已追加到笔记末尾" });
+  };
+
+  // Handle replacing note content with AI result
+  const handleReplaceResult = async () => {
+    if (!aiResult || !editor) return;
+
+    if (aiResult.selectionFrom !== undefined && aiResult.selectionTo !== undefined) {
+      // Replace only the selected range
+      editor
+        .chain()
+        .focus()
+        .setTextSelection({ from: aiResult.selectionFrom, to: aiResult.selectionTo })
+        .deleteSelection()
+        .insertContent(aiResult.content)
+        .run();
+    } else {
+      // Replace entire content
+      editor.commands.setContent(aiResult.content);
+    }
+    await onUpdate(note.id, { content: editor.getHTML() });
+    setAiResult(null);
+    toast({ title: aiResult.selectionFrom !== undefined ? "已替换选中内容" : "已覆盖笔记内容" });
+  };
+
+  // Handle selection-based AI action
+  const handleSelectionAiAction = (action: "rewrite" | "continue" | "polish" | "expand", selectedText: string) => {
+    handleAiAction(action, selectedText);
   };
 
   return (
@@ -218,25 +274,41 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
         </div>
       )}
 
-      {summary && (
-        <div className="mx-6 mt-4 p-4 rounded-lg bg-accent/50 border border-border">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-foreground flex items-center gap-1"><Sparkles className="w-3 h-3" /> AI 摘要</span>
-            <button onClick={() => setSummary(null)} className="text-xs text-muted-foreground hover:text-foreground">关闭</button>
-          </div>
-          <div className="text-sm text-foreground/80 leading-relaxed prose prose-sm max-w-none prose-headings:text-foreground prose-strong:text-foreground prose-blockquote:border-primary/50 prose-blockquote:text-muted-foreground" dangerouslySetInnerHTML={{ __html: summary }} />
+      {/* AI loading indicator */}
+      {aiLoading && (
+        <div className="mx-6 mt-3 px-4 py-3 rounded-lg bg-primary/5 border border-primary/20 flex items-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin text-primary" />
+          <span className="text-xs text-foreground/70">
+            AI 正在{aiLoading === "organize" ? "整理" : aiLoading === "summarize" ? "总结" : aiLoading === "rewrite" ? "改写" : aiLoading === "polish" ? "润色" : aiLoading === "expand" ? "扩写" : "续写"}中，请稍候...
+          </span>
         </div>
+      )}
+
+      {/* AI Result Panel */}
+      {aiResult && (
+        <AiResultPanel
+          result={aiResult.content}
+          type={aiResult.type}
+          onAppend={handleAppendResult}
+          onReplace={handleReplaceResult}
+          onClose={() => setAiResult(null)}
+        />
       )}
 
       <EditorToolbar editor={editor} onInsertImage={() => fileInputRef.current?.click()} />
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-4" style={{ fontSize: `${pageFontSize}px` }}>
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 relative" style={{ fontSize: `${pageFontSize}px` }}>
         <input type="text" value={title} onChange={(e) => handleTitleChange(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); editor?.commands.focus("start"); } }}
           placeholder="笔记标题"
           className="w-full text-2xl font-bold bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/40"
         />
         <EditorContent editor={editor} className="tiptap-editor" />
+        <AiSelectionToolbar
+          editor={editor}
+          onAiAction={handleSelectionAiAction}
+          isLoading={!!aiLoading}
+        />
       </div>
       <UpgradePrompt open={showUpgrade} onOpenChange={setShowUpgrade} feature="AI 功能" />
     </div>
