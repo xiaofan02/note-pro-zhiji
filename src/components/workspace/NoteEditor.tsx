@@ -224,7 +224,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
             <span className="text-xs font-semibold text-foreground flex items-center gap-1"><Sparkles className="w-3 h-3" /> AI 摘要</span>
             <button onClick={() => setSummary(null)} className="text-xs text-muted-foreground hover:text-foreground">关闭</button>
           </div>
-          <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{summary}</p>
+          <div className="text-sm text-foreground/80 leading-relaxed prose prose-sm max-w-none prose-headings:text-foreground prose-strong:text-foreground prose-blockquote:border-primary/50 prose-blockquote:text-muted-foreground" dangerouslySetInnerHTML={{ __html: summary }} />
         </div>
       )}
 
