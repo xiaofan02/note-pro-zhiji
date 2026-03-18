@@ -334,18 +334,55 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
             {new Date(note.updated_at).toLocaleString("zh-CN")}
           </span>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {voiceSupported && (
-            <button onClick={handleVoiceToggle} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${isListening ? "bg-destructive text-destructive-foreground animate-pulse" : "bg-accent text-accent-foreground hover:bg-accent/80"}`}>
-              <Mic className="w-3 h-3" /> {isListening ? "停止录音" : "语音速记"}
+        <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+          {onTogglePin && (
+            <button onClick={() => onTogglePin(note.id)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors">
+              {note.is_pinned ? <PinOff className="w-3 h-3" /> : <Pin className="w-3 h-3" />}
+              {note.is_pinned ? "取消置顶" : "置顶"}
             </button>
           )}
-          <button onClick={() => handleAiAction("organize")} disabled={!!aiLoading} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors disabled:opacity-50">
-            {aiLoading === "organize" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} 智能整理
+          {voiceSupported && (
+            <button onClick={handleVoiceToggle} className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${isListening ? "bg-destructive text-destructive-foreground animate-pulse" : "bg-accent text-accent-foreground hover:bg-accent/80"}`}>
+              <Mic className="w-3 h-3" /> {isListening ? "停止" : "语音"}
+            </button>
+          )}
+          <button onClick={() => handleAiAction("organize")} disabled={!!aiLoading} className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors disabled:opacity-50">
+            {aiLoading === "organize" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} 整理
           </button>
-          <button onClick={() => handleAiAction("summarize")} disabled={!!aiLoading} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors disabled:opacity-50">
-            {aiLoading === "summarize" ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />} AI 总结
+          <button onClick={() => handleAiAction("summarize")} disabled={!!aiLoading} className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors disabled:opacity-50">
+            {aiLoading === "summarize" ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />} 总结
           </button>
+
+          {/* Export */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors">
+                <Download className="w-3 h-3" /> 导出
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => exportAs("markdown")}>导出为 Markdown</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("html")}>导出为 HTML</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("txt")}>导出为纯文本</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Share */}
+          {onToggleShare && (
+            <div className="inline-flex items-center gap-1">
+              <button onClick={handleShare} className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${shareUrl ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground hover:bg-accent/80"}`}>
+                {shareUrl ? <Link2 className="w-3 h-3" /> : <Share2 className="w-3 h-3" />}
+                {shareUrl ? "取消分享" : "分享"}
+              </button>
+              {shareUrl && (
+                <button onClick={copyShareUrl} className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors">
+                  {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  {copied ? "已复制" : "复制链接"}
+                </button>
+              )}
+            </div>
+          )}
+
           <span className="text-xs text-muted-foreground flex items-center gap-1">
             {saving ? <>保存中...</> : <><Save className="w-3 h-3" /> 已保存</>}
           </span>
