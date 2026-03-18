@@ -22,10 +22,10 @@
     --accent-foreground: 210 78% 40%;
     --destructive: 0 72% 58%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 10% 91%;
-    --input: 220 10% 91%;
+    --border: 220 12% 93%;
+    --input: 220 12% 90%;
     --ring: 210 78% 56%;
-    --radius: 0.625rem;
+    --radius: 0.75rem;
     --section-alt: 40 15% 96%;
 
     --sidebar-background: 0 0% 100%;
