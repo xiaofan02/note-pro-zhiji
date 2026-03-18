@@ -50,7 +50,7 @@ const SidebarFolderTree = React.memo(({
   onToggleFolder, onSetActiveFolder, onRenameValueChange, onRenameSubmit,
   onStartRename, onCancelRename, onCreateNoteInFolder, onCreateSubfolder,
   onDeleteFolder, onSelectNote, onDeleteNote, onMoveNote, onDragStart,
-  onFolderDragEnter, onFolderDragLeave, onDropOnFolder,
+  onFolderDragEnter, onFolderDragLeave, onDropOnFolder, onTogglePin,
 }: SidebarFolderTreeProps) => {
   const folderNotes = notesByFolder[folder.id] || [];
   const childFolders = getChildFolders(folder.id);
