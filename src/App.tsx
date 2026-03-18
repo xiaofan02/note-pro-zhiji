@@ -12,6 +12,7 @@ import NotFound from "./pages/NotFound.tsx";
 import Admin from "./pages/Admin.tsx";
 import Upgrade from "./pages/Upgrade.tsx";
 import DesktopAuthCallback from "./pages/DesktopAuthCallback.tsx";
+import SharedNote from "./pages/SharedNote.tsx";
 
 const queryClient = new QueryClient();
 
