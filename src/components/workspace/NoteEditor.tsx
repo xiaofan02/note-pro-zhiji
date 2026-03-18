@@ -421,13 +421,31 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => exportAs("markdown")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> Markdown
+                <Download className="w-3.5 h-3.5 mr-1.5" /> Markdown (.md)
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => exportAs("html")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> HTML
+                <Download className="w-3.5 h-3.5 mr-1.5" /> HTML (.html)
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => exportAs("txt")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> 纯文本
+                <Download className="w-3.5 h-3.5 mr-1.5" /> 纯文本 (.txt)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("docx")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> Word (.docx)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("csv")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> CSV (.csv)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("json")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> JSON (.json)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("xml")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> XML (.xml)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("rtf")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> RTF (.rtf)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("log")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> Log (.log)
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
