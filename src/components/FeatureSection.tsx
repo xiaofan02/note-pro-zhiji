@@ -65,7 +65,7 @@ const FeatureSection = ({
             <img
               src={image}
               alt={alt}
-              className="w-full rounded-2xl shadow-xl"
+              className="w-full rounded-2xl shadow-[0_8px_30px_-8px_hsl(220_20%_14%/0.1)] ring-1 ring-border"
               loading="lazy"
             />
           </div>

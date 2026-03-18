@@ -261,7 +261,7 @@ const Auth = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-11 rounded-lg bg-foreground text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="w-full h-11 rounded-xl bg-foreground text-primary-foreground font-medium text-sm hover:opacity-90 transition-all duration-200 disabled:opacity-50 shadow-sm hover:shadow-md"
             >
               {loading ? "处理中..." : mode === "login" ? "登录" : mode === "register" ? "注册" : "发送重置链接"}
             </button>

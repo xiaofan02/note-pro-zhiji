@@ -41,7 +41,7 @@ const TestimonialsSection = () => {
           {testimonials.map((t, i) => (
             <div
               key={i}
-              className="bg-background rounded-2xl p-6 shadow-sm border border-border space-y-4"
+              className="bg-background rounded-2xl p-6 shadow-[0_2px_8px_-2px_hsl(220_20%_14%/0.06),0_0_0_1px_hsl(220_12%_93%)] space-y-4 hover:shadow-[0_4px_16px_-4px_hsl(220_20%_14%/0.1),0_0_0_1px_hsl(220_12%_90%)] transition-shadow duration-300"
             >
               <div className="flex gap-0.5">
                 {Array.from({ length: t.rating }).map((_, j) => (
