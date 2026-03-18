@@ -2,17 +2,6 @@ name: Build Tauri Desktop App
 
 on:
   workflow_dispatch:
-    inputs:
-      platform:
-        description: 'Build platform'
-        required: true
-        default: 'all'
-        type: choice
-        options:
-          - all
-          - windows
-          - macos
-          - linux
   push:
     tags:
       - 'v*'
@@ -40,12 +29,6 @@ jobs:
             os_name: 'macos-intel'
 
     runs-on: ${{ matrix.platform }}
-    if: >-
-      github.event_name == 'push' ||
-      github.event.inputs.platform == 'all' ||
-      (github.event.inputs.platform == 'windows' && matrix.os_name == 'windows') ||
-      (github.event.inputs.platform == 'macos' && contains(matrix.os_name, 'macos')) ||
-      (github.event.inputs.platform == 'linux' && matrix.os_name == 'linux')
 
     steps:
       - name: Checkout repository
@@ -60,8 +43,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: 22
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -74,7 +56,7 @@ jobs:
           workspaces: './src-tauri -> target'
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
