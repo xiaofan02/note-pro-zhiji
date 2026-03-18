@@ -432,6 +432,7 @@ const Workspace = () => {
                 onFolderDragEnter={handleFolderDragEnter}
                 onFolderDragLeave={handleFolderDragLeave}
                 onDropOnFolder={handleDropOnFolder}
+                onTogglePin={togglePin}
               />
             ))}
 
