@@ -466,6 +466,7 @@ const Workspace = () => {
                     onDelete={deleteNote}
                     onMove={handleMoveNote}
                     onDragStart={handleDragStart}
+                    onTogglePin={togglePin}
                   />
                 ))}
                 {unfolderedNotes.length === 0 && (
