@@ -50,6 +50,7 @@ interface NoteEditorProps {
   pageFontSize: number;
   onTogglePin?: (id: string) => void;
   onToggleShare?: (id: string) => Promise<string | null>;
+  onImportFile?: () => void;
 }
 
 const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onRemoveTag, pageFontSize, onTogglePin, onToggleShare }: NoteEditorProps) => {
