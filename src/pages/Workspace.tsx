@@ -21,6 +21,7 @@ import SidebarFolderTree from "@/components/workspace/SidebarFolderTree";
 import WorkspaceEmptyState from "@/components/workspace/WorkspaceEmptyState";
 import UserAvatar from "@/components/workspace/UserAvatar";
 import TrashBin from "@/components/workspace/TrashBin";
+import NoteTemplates from "@/components/workspace/NoteTemplates";
 import { useDocumentImport } from "@/hooks/useDocumentImport";
 import { getStorageSettings, setStorageSettings, StorageSettings, localNotesStorage } from "@/lib/localNotesStorage";
 import { useToast } from "@/hooks/use-toast";
