@@ -75,5 +75,5 @@ export function detectLanguage(code: string): string {
   const entries = Object.entries(scores);
   if (entries.length === 0) return "";
   entries.sort((a, b) => b[1] - a[1]);
-  return entries[0][1] >= 2 ? entries[0][0] : "";
+  return entries[0][1] >= 1 ? entries[0][0] : "";
 }
