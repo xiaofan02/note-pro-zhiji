@@ -161,6 +161,27 @@ const templates: NoteTemplate[] = [
 <h2>备注</h2>
 <p></p>`,
   },
+  {
+    id: "wechat-article",
+    name: "公众号文章",
+    icon: <Megaphone className="w-4 h-4" />,
+    title: "公众号文章",
+    content: `<h1>文章标题</h1>
+<blockquote><p>导语：一句话吸引读者继续阅读</p></blockquote>
+<h2>引言</h2>
+<p></p>
+<h2>正文</h2>
+<h3>一、</h3>
+<p></p>
+<h3>二、</h3>
+<p></p>
+<h3>三、</h3>
+<p></p>
+<h2>总结</h2>
+<p></p>
+<p><strong>—— END ——</strong></p>
+<p>如果觉得有帮助，欢迎<strong>点赞、在看、转发</strong>三连 🙏</p>`,
+  },
 ];
 
 interface NoteTemplatesProps {
