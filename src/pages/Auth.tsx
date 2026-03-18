@@ -208,7 +208,7 @@ const Auth = () => {
                   placeholder="你的名字"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full h-11 pl-10 pr-4 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full h-11 pl-10 pr-4 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all duration-200"
                   required
                 />
               </div>
