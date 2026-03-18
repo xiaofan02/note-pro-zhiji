@@ -436,80 +436,42 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
                 <Download className="w-3 h-3" /> 导出
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => exportAs("markdown")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> Markdown (.md)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("html")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> HTML (.html)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("txt")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> 纯文本 (.txt)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("docx")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> Word (.docx)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("csv")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> CSV (.csv)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("json")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> JSON (.json)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("xml")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> XML (.xml)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("rtf")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> RTF (.rtf)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("log")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> Log (.log)
-              </DropdownMenuItem>
-              <div className="px-2 py-1.5 text-xs text-muted-foreground font-medium">代码文件</div>
-              <DropdownMenuItem onClick={() => exportAs("js")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> JavaScript (.js)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("ts")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> TypeScript (.ts)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("py")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> Python (.py)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("java")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> Java (.java)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("cpp")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> C/C++ (.cpp)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("go")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> Go (.go)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("rs")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> Rust (.rs)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("sql")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> SQL (.sql)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("sh")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> Shell (.sh)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("css")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> CSS (.css)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("yaml")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> YAML (.yaml)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("php")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> PHP (.php)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("rb")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> Ruby (.rb)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("swift")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> Swift (.swift)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAs("kt")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> Kotlin (.kt)
-              </DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => exportAs("markdown")}>Markdown (.md)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("html")}>HTML (.html)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("txt")}>纯文本 (.txt)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("docx")}>Word (.docx)</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>更多文档格式</DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem onClick={() => exportAs("csv")}>CSV (.csv)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportAs("json")}>JSON (.json)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportAs("xml")}>XML (.xml)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportAs("rtf")}>RTF (.rtf)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportAs("log")}>Log (.log)</DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>代码文件</DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem onClick={() => exportAs("js")}>JavaScript (.js)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportAs("ts")}>TypeScript (.ts)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportAs("py")}>Python (.py)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportAs("java")}>Java (.java)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportAs("cpp")}>C/C++ (.cpp)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportAs("go")}>Go (.go)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportAs("rs")}>Rust (.rs)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportAs("sql")}>SQL (.sql)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportAs("sh")}>Shell (.sh)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportAs("css")}>CSS (.css)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportAs("yaml")}>YAML (.yaml)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportAs("php")}>PHP (.php)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportAs("rb")}>Ruby (.rb)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportAs("swift")}>Swift (.swift)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportAs("kt")}>Kotlin (.kt)</DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
             </DropdownMenuContent>
           </DropdownMenu>
 
