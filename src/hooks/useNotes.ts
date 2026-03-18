@@ -95,7 +95,7 @@ export const useNotes = (storageSettings?: StorageSettings) => {
       const { data, error } = await supabase
         .from("notes")
         .insert({ user_id: user.id, title: "无标题笔记", content: "", folder_id: folderId || null })
-        .select("id, title, content, folder_id, created_at, updated_at, deleted_at")
+        .select("id, title, content, folder_id, created_at, updated_at, deleted_at, is_pinned, share_token")
         .single();
 
       if (error) {
