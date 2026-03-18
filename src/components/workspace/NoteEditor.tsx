@@ -347,6 +347,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
         }
         return;
       }
+    }
 
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
