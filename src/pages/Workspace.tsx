@@ -759,6 +759,7 @@ const Workspace = () => {
                     pageFontSize={pageFontSize}
                     onTogglePin={togglePin}
                     onToggleShare={toggleShare}
+                    onImportFile={() => importInputRef.current?.click()}
                   />
                 ) : (
                   <WorkspaceEmptyState onCreateNote={handleNewNote} />
