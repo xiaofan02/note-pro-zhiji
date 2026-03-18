@@ -487,6 +487,7 @@ const Workspace = () => {
             onDelete={deleteNote}
             onMove={handleMoveNote}
             onDragStart={handleDragStart}
+            onTogglePin={togglePin}
           />
         ))}
       </div>
