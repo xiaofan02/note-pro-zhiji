@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import { useNavigate, Link } from "react-router-dom";
 import {
   Sparkles, FileText, LogOut, Plus, Search, Moon, Sun, Crown,
-  FolderPlus, PanelLeftClose, PanelLeftOpen, Menu, X,
+  FolderPlus, PanelLeftClose, PanelLeftOpen, Menu, X, RefreshCw,
 } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
