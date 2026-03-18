@@ -363,6 +363,7 @@ const Workspace = () => {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs">导入文档</TooltipContent>
             </Tooltip>
+            <NoteTemplates onCreateFromTemplate={handleCreateFromTemplate} />
             <Sheet>
               <Tooltip>
                 <TooltipTrigger asChild>
