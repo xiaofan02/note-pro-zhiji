@@ -526,6 +526,24 @@ const Workspace = () => {
           )}
           <Tooltip>
             <TooltipTrigger asChild>
+              <button
+                onClick={() => { pwaUpdate(); toast({ title: hasUpdate ? "正在更新..." : "正在检查更新...", description: hasUpdate ? "应用即将刷新" : "已是最新版本" }); }}
+                className={cn(
+                  "p-2 rounded-lg transition-colors",
+                  hasUpdate
+                    ? "text-primary bg-primary/10 hover:bg-primary/20 animate-pulse"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                )}
+              >
+                <RefreshCw className={cn("w-4 h-4", updating && "animate-spin")} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="text-xs">
+              {hasUpdate ? "有新版本，点击更新" : "检查更新"}
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
               <button onClick={handleSignOut} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                 <LogOut className="w-4 h-4" />
               </button>
