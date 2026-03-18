@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import { useNavigate, Link } from "react-router-dom";
 import {
   Sparkles, FileText, LogOut, Plus, Search, Moon, Sun, Crown,
-  FolderPlus, PanelLeftClose, PanelLeftOpen, Menu, X,
+  FolderPlus, PanelLeftClose, PanelLeftOpen, Menu, X, RefreshCw,
 } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -26,6 +26,7 @@ import { getStorageSettings, setStorageSettings, StorageSettings, localNotesStor
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { usePwaUpdate } from "@/hooks/usePwaUpdate";
 
 const Workspace = () => {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -33,6 +34,7 @@ const Workspace = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const { hasUpdate, updating, update: pwaUpdate } = usePwaUpdate();
   const [storageSettings, setStorageSettingsState] = useState<StorageSettings>(getStorageSettings);
   const { notes, trashedNotes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, restoreNote, permanentDeleteNote, emptyTrash, refreshNotes, togglePin, toggleShare } = useNotes(storageSettings);
   const { tags, noteTagsMap, createTag, addTagToNote, removeTagFromNote, getTagsForNote } = useTags();
@@ -522,6 +524,24 @@ const Workspace = () => {
               <TooltipContent side="right" className="text-xs">管理后台</TooltipContent>
             </Tooltip>
           )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => { pwaUpdate(); toast({ title: hasUpdate ? "正在更新..." : "正在检查更新...", description: hasUpdate ? "应用即将刷新" : "已是最新版本" }); }}
+                className={cn(
+                  "p-2 rounded-lg transition-colors",
+                  hasUpdate
+                    ? "text-primary bg-primary/10 hover:bg-primary/20 animate-pulse"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                )}
+              >
+                <RefreshCw className={cn("w-4 h-4", updating && "animate-spin")} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="text-xs">
+              {hasUpdate ? "有新版本，点击更新" : "检查更新"}
+            </TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <button onClick={handleSignOut} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">

@@ -194,6 +194,89 @@
   @apply rounded-t-none mt-0;
 }
 
+/* ===== Syntax Highlighting (lowlight / hljs) ===== */
+/* Light mode */
+.tiptap-editor .hljs-keyword,
+.tiptap-editor .hljs-selector-tag,
+.tiptap-editor .hljs-built_in,
+.tiptap-editor .hljs-name { color: hsl(280 68% 48%); font-weight: 500; }
+
+.tiptap-editor .hljs-string,
+.tiptap-editor .hljs-attr,
+.tiptap-editor .hljs-template-tag,
+.tiptap-editor .hljs-template-variable { color: hsl(140 50% 35%); }
+
+.tiptap-editor .hljs-number,
+.tiptap-editor .hljs-literal,
+.tiptap-editor .hljs-type,
+.tiptap-editor .hljs-params { color: hsl(25 80% 48%); }
+
+.tiptap-editor .hljs-comment,
+.tiptap-editor .hljs-quote { color: hsl(220 10% 55%); font-style: italic; }
+
+.tiptap-editor .hljs-function,
+.tiptap-editor .hljs-title { color: hsl(210 70% 45%); font-weight: 500; }
+
+.tiptap-editor .hljs-variable,
+.tiptap-editor .hljs-attr { color: hsl(350 65% 50%); }
+
+.tiptap-editor .hljs-meta,
+.tiptap-editor .hljs-meta .hljs-keyword { color: hsl(190 60% 40%); }
+
+.tiptap-editor .hljs-tag { color: hsl(220 15% 40%); }
+.tiptap-editor .hljs-tag .hljs-name { color: hsl(350 65% 48%); }
+.tiptap-editor .hljs-tag .hljs-attr { color: hsl(25 70% 48%); }
+
+.tiptap-editor .hljs-selector-class,
+.tiptap-editor .hljs-selector-id { color: hsl(210 70% 45%); }
+
+.tiptap-editor .hljs-property { color: hsl(350 60% 48%); }
+.tiptap-editor .hljs-regexp { color: hsl(0 65% 50%); }
+.tiptap-editor .hljs-symbol { color: hsl(190 60% 40%); }
+.tiptap-editor .hljs-operator { color: hsl(280 45% 50%); }
+.tiptap-editor .hljs-punctuation { color: hsl(220 10% 45%); }
+
+/* Dark mode syntax highlighting */
+.dark .tiptap-editor .hljs-keyword,
+.dark .tiptap-editor .hljs-selector-tag,
+.dark .tiptap-editor .hljs-built_in,
+.dark .tiptap-editor .hljs-name { color: hsl(280 80% 72%); }
+
+.dark .tiptap-editor .hljs-string,
+.dark .tiptap-editor .hljs-attr,
+.dark .tiptap-editor .hljs-template-tag,
+.dark .tiptap-editor .hljs-template-variable { color: hsl(140 60% 60%); }
+
+.dark .tiptap-editor .hljs-number,
+.dark .tiptap-editor .hljs-literal,
+.dark .tiptap-editor .hljs-type,
+.dark .tiptap-editor .hljs-params { color: hsl(30 85% 62%); }
+
+.dark .tiptap-editor .hljs-comment,
+.dark .tiptap-editor .hljs-quote { color: hsl(220 10% 50%); font-style: italic; }
+
+.dark .tiptap-editor .hljs-function,
+.dark .tiptap-editor .hljs-title { color: hsl(210 80% 65%); }
+
+.dark .tiptap-editor .hljs-variable,
+.dark .tiptap-editor .hljs-attr { color: hsl(350 75% 68%); }
+
+.dark .tiptap-editor .hljs-meta,
+.dark .tiptap-editor .hljs-meta .hljs-keyword { color: hsl(190 70% 60%); }
+
+.dark .tiptap-editor .hljs-tag { color: hsl(220 10% 65%); }
+.dark .tiptap-editor .hljs-tag .hljs-name { color: hsl(350 75% 68%); }
+.dark .tiptap-editor .hljs-tag .hljs-attr { color: hsl(30 80% 65%); }
+
+.dark .tiptap-editor .hljs-selector-class,
+.dark .tiptap-editor .hljs-selector-id { color: hsl(210 80% 65%); }
+
+.dark .tiptap-editor .hljs-property { color: hsl(350 70% 68%); }
+.dark .tiptap-editor .hljs-regexp { color: hsl(0 75% 65%); }
+.dark .tiptap-editor .hljs-symbol { color: hsl(190 70% 60%); }
+.dark .tiptap-editor .hljs-operator { color: hsl(280 65% 72%); }
+.dark .tiptap-editor .hljs-punctuation { color: hsl(220 10% 60%); }
+
 .tiptap-editor .tiptap a {
   @apply text-primary underline cursor-pointer;
 }
