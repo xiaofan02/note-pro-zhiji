@@ -635,6 +635,8 @@ const Workspace = () => {
                     onAddTag={addTagToNote}
                     onRemoveTag={removeTagFromNote}
                     pageFontSize={pageFontSize}
+                    onTogglePin={togglePin}
+                    onToggleShare={toggleShare}
                   />
                 </div>
               ) : (
