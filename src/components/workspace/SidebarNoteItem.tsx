@@ -110,7 +110,7 @@ const SidebarNoteItem = React.memo(({
             <AlertDialogFooter>
               <AlertDialogCancel>取消</AlertDialogCancel>
               <AlertDialogAction onClick={() => onDelete(note.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                删除
+                移至回收站
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

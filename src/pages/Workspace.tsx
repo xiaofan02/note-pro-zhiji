@@ -504,6 +504,12 @@ const Workspace = () => {
                 </TooltipTrigger>
                 <TooltipContent side="right" className="text-xs">{isDark ? "切换到浅色模式" : "切换到深色模式"}</TooltipContent>
               </Tooltip>
+              <TrashBin
+                trashedNotes={trashedNotes}
+                onRestore={restoreNote}
+                onPermanentDelete={permanentDeleteNote}
+                onEmptyTrash={emptyTrash}
+              />
               <SettingsDialog
                 pageFontSize={pageFontSize}
                 onPageFontSizeChange={handlePageFontSizeChange}
