@@ -206,6 +206,7 @@ const SidebarFolderTree = React.memo(({
               onDelete={onDeleteNote}
               onMove={onMoveNote}
               onDragStart={onDragStart}
+              onTogglePin={onTogglePin}
             />
           ))}
           {folderNotes.length === 0 && childFolders.length === 0 && (
