@@ -351,14 +351,6 @@ const Workspace = () => {
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-xs">新建目录</TooltipContent>
         </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button onClick={() => importInputRef.current?.click()} className="px-2 py-2 rounded-lg bg-accent text-accent-foreground hover:bg-accent/80 transition-colors shrink-0">
-              <Upload className="w-4 h-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-xs">导入文档</TooltipContent>
-        </Tooltip>
         <NoteTemplates onCreateFromTemplate={handleCreateFromTemplate} />
         <Sheet>
           <Tooltip>
