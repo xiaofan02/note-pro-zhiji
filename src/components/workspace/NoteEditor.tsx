@@ -331,9 +331,22 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
         }
         break;
       }
-      default:
+      default: {
+        // Code file exports - extract plain text
+        const codeExtMap: Record<string, string> = {
+          js: "js", ts: "ts", py: "py", java: "java", go: "go", rs: "rs",
+          cpp: "cpp", sql: "sql", sh: "sh", css: "css", yaml: "yaml",
+          php: "php", rb: "rb", swift: "swift", kt: "kt",
+        };
+        const codeExt = codeExtMap[format];
+        if (codeExt) {
+          content = plainText;
+          ext = codeExt; mime = "text/plain";
+          blob = new Blob([content], { type: mime });
+          break;
+        }
         return;
-    }
+      }
 
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
