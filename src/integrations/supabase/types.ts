@@ -166,6 +166,8 @@ export type Database = {
           deleted_at: string | null
           folder_id: string | null
           id: string
+          is_pinned: boolean
+          share_token: string | null
           title: string
           updated_at: string
           user_id: string
@@ -176,6 +178,8 @@ export type Database = {
           deleted_at?: string | null
           folder_id?: string | null
           id?: string
+          is_pinned?: boolean
+          share_token?: string | null
           title?: string
           updated_at?: string
           user_id: string
@@ -186,6 +190,8 @@ export type Database = {
           deleted_at?: string | null
           folder_id?: string | null
           id?: string
+          is_pinned?: boolean
+          share_token?: string | null
           title?: string
           updated_at?: string
           user_id?: string

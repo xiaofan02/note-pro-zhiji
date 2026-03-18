@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Note } from "@/hooks/useNotes";
 import { Tag } from "@/hooks/useTags";
-import { Save, Sparkles, FileText, Loader2, Mic } from "lucide-react";
+import { Save, Sparkles, FileText, Loader2, Mic, Download, Share2, Link2, Pin, PinOff, Check, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
@@ -24,6 +24,9 @@ import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
 import EditorToolbar from "./EditorToolbar";
 import CodeBlockComponent from "./CodeBlockComponent";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const lowlight = createLowlight(common);
 
@@ -45,9 +48,11 @@ interface NoteEditorProps {
   onAddTag: (noteId: string, tagId: string) => void;
   onRemoveTag: (noteId: string, tagId: string) => void;
   pageFontSize: number;
+  onTogglePin?: (id: string) => void;
+  onToggleShare?: (id: string) => Promise<string | null>;
 }
 
-const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onRemoveTag, pageFontSize }: NoteEditorProps) => {
+const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onRemoveTag, pageFontSize, onTogglePin, onToggleShare }: NoteEditorProps) => {
   const { user } = useAuth();
   const { isPro } = useUserRole();
   const [title, setTitle] = useState(note.title);
@@ -240,6 +245,85 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
     handleAiAction(action, selectedText);
   };
 
+  // Export functions
+  const exportAs = (format: "markdown" | "html" | "txt") => {
+    if (!editor) return;
+    const html = editor.getHTML();
+    let content: string;
+    let ext: string;
+    let mime: string;
+
+    if (format === "html") {
+      content = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title></head><body>${html}</body></html>`;
+      ext = "html";
+      mime = "text/html";
+    } else if (format === "txt") {
+      content = editor.getText();
+      ext = "txt";
+      mime = "text/plain";
+    } else {
+      // Simple HTML to Markdown conversion
+      content = html
+        .replace(/<h1[^>]*>(.*?)<\/h1>/gi, "# $1\n\n")
+        .replace(/<h2[^>]*>(.*?)<\/h2>/gi, "## $1\n\n")
+        .replace(/<h3[^>]*>(.*?)<\/h3>/gi, "### $1\n\n")
+        .replace(/<strong>(.*?)<\/strong>/gi, "**$1**")
+        .replace(/<em>(.*?)<\/em>/gi, "*$1*")
+        .replace(/<li[^>]*>(.*?)<\/li>/gi, "- $1\n")
+        .replace(/<blockquote[^>]*><p>(.*?)<\/p><\/blockquote>/gi, "> $1\n\n")
+        .replace(/<p>(.*?)<\/p>/gi, "$1\n\n")
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<[^>]*>/g, "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+      ext = "md";
+      mime = "text/markdown";
+    }
+
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${title || "笔记"}.${ext}`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "导出成功", description: `已导出为 .${ext} 格式` });
+  };
+
+  // Share
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (note.share_token) {
+      setShareUrl(`${window.location.origin}/s/${note.share_token}`);
+    } else {
+      setShareUrl(null);
+    }
+  }, [note.share_token, note.id]);
+
+  const handleShare = async () => {
+    if (!onToggleShare) return;
+    const token = await onToggleShare(note.id);
+    if (token) {
+      const url = `${window.location.origin}/s/${token}`;
+      setShareUrl(url);
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } else {
+      setShareUrl(null);
+    }
+  };
+
+  const copyShareUrl = async () => {
+    if (!shareUrl) return;
+    await navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    toast({ title: "已复制分享链接" });
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full">
       <input type="file" ref={fileInputRef} className="hidden" accept="image/png,image/jpeg,image/gif,image/webp" onChange={handleFileSelect} />
@@ -250,18 +334,55 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
             {new Date(note.updated_at).toLocaleString("zh-CN")}
           </span>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {voiceSupported && (
-            <button onClick={handleVoiceToggle} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${isListening ? "bg-destructive text-destructive-foreground animate-pulse" : "bg-accent text-accent-foreground hover:bg-accent/80"}`}>
-              <Mic className="w-3 h-3" /> {isListening ? "停止录音" : "语音速记"}
+        <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+          {onTogglePin && (
+            <button onClick={() => onTogglePin(note.id)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors">
+              {note.is_pinned ? <PinOff className="w-3 h-3" /> : <Pin className="w-3 h-3" />}
+              {note.is_pinned ? "取消置顶" : "置顶"}
             </button>
           )}
-          <button onClick={() => handleAiAction("organize")} disabled={!!aiLoading} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors disabled:opacity-50">
-            {aiLoading === "organize" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} 智能整理
+          {voiceSupported && (
+            <button onClick={handleVoiceToggle} className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${isListening ? "bg-destructive text-destructive-foreground animate-pulse" : "bg-accent text-accent-foreground hover:bg-accent/80"}`}>
+              <Mic className="w-3 h-3" /> {isListening ? "停止" : "语音"}
+            </button>
+          )}
+          <button onClick={() => handleAiAction("organize")} disabled={!!aiLoading} className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors disabled:opacity-50">
+            {aiLoading === "organize" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} 整理
           </button>
-          <button onClick={() => handleAiAction("summarize")} disabled={!!aiLoading} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors disabled:opacity-50">
-            {aiLoading === "summarize" ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />} AI 总结
+          <button onClick={() => handleAiAction("summarize")} disabled={!!aiLoading} className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors disabled:opacity-50">
+            {aiLoading === "summarize" ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />} 总结
           </button>
+
+          {/* Export */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors">
+                <Download className="w-3 h-3" /> 导出
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => exportAs("markdown")}>导出为 Markdown</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("html")}>导出为 HTML</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("txt")}>导出为纯文本</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Share */}
+          {onToggleShare && (
+            <div className="inline-flex items-center gap-1">
+              <button onClick={handleShare} className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${shareUrl ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground hover:bg-accent/80"}`}>
+                {shareUrl ? <Link2 className="w-3 h-3" /> : <Share2 className="w-3 h-3" />}
+                {shareUrl ? "取消分享" : "分享"}
+              </button>
+              {shareUrl && (
+                <button onClick={copyShareUrl} className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors">
+                  {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  {copied ? "已复制" : "复制链接"}
+                </button>
+              )}
+            </div>
+          )}
+
           <span className="text-xs text-muted-foreground flex items-center gap-1">
             {saving ? <>保存中...</> : <><Save className="w-3 h-3" /> 已保存</>}
           </span>

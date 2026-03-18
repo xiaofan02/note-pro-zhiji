@@ -12,6 +12,8 @@ export interface Note {
   created_at: string;
   updated_at: string;
   deleted_at?: string | null;
+  is_pinned?: boolean;
+  share_token?: string | null;
 }
 
 export const useNotes = (storageSettings?: StorageSettings) => {
@@ -40,8 +42,9 @@ export const useNotes = (storageSettings?: StorageSettings) => {
       // Fetch active notes
       const { data, error } = await supabase
         .from("notes")
-        .select("id, title, content, folder_id, created_at, updated_at, deleted_at")
+        .select("id, title, content, folder_id, created_at, updated_at, deleted_at, is_pinned, share_token")
         .is("deleted_at", null)
+        .order("is_pinned", { ascending: false })
         .order("updated_at", { ascending: false });
 
       if (error) {
@@ -53,7 +56,7 @@ export const useNotes = (storageSettings?: StorageSettings) => {
       // Fetch trashed notes
       const { data: trashed, error: trashError } = await supabase
         .from("notes")
-        .select("id, title, content, folder_id, created_at, updated_at, deleted_at")
+        .select("id, title, content, folder_id, created_at, updated_at, deleted_at, is_pinned, share_token")
         .not("deleted_at", "is", null)
         .order("deleted_at", { ascending: false });
 
@@ -92,7 +95,7 @@ export const useNotes = (storageSettings?: StorageSettings) => {
       const { data, error } = await supabase
         .from("notes")
         .insert({ user_id: user.id, title: "无标题笔记", content: "", folder_id: folderId || null })
-        .select("id, title, content, folder_id, created_at, updated_at, deleted_at")
+        .select("id, title, content, folder_id, created_at, updated_at, deleted_at, is_pinned, share_token")
         .single();
 
       if (error) {
@@ -235,11 +238,64 @@ export const useNotes = (storageSettings?: StorageSettings) => {
     }
   };
 
+  // Toggle pin
+  const togglePin = async (id: string) => {
+    const note = notes.find((n) => n.id === id);
+    if (!note) return;
+    const newPinned = !note.is_pinned;
+
+    if (isLocal) {
+      const updated = { ...note, is_pinned: newPinned, updated_at: new Date().toISOString() };
+      try {
+        await localNotesStorage.save(updated, storageSettings?.localPath);
+        setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
+        toast({ title: newPinned ? "已置顶" : "已取消置顶" });
+      } catch (e: any) {
+        toast({ title: "操作失败", description: e.message, variant: "destructive" });
+      }
+    } else {
+      const { error } = await supabase.from("notes").update({ is_pinned: newPinned }).eq("id", id);
+      if (error) {
+        toast({ title: "操作失败", description: error.message, variant: "destructive" });
+      } else {
+        setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, is_pinned: newPinned } : n)));
+        toast({ title: newPinned ? "已置顶" : "已取消置顶" });
+      }
+    }
+  };
+
+  // Toggle share
+  const toggleShare = async (id: string): Promise<string | null> => {
+    const note = notes.find((n) => n.id === id);
+    if (!note) return null;
+
+    if (note.share_token) {
+      // Remove sharing
+      const { error } = await supabase.from("notes").update({ share_token: null }).eq("id", id);
+      if (!error) {
+        setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, share_token: null } : n)));
+        toast({ title: "已取消分享" });
+      }
+      return null;
+    } else {
+      // Create share token
+      const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+      const { error } = await supabase.from("notes").update({ share_token: token }).eq("id", id);
+      if (error) {
+        toast({ title: "分享失败", description: error.message, variant: "destructive" });
+        return null;
+      }
+      setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, share_token: token } : n)));
+      toast({ title: "已生成分享链接" });
+      return token;
+    }
+  };
+
   const activeNote = notes.find((n) => n.id === activeNoteId) || null;
 
   return {
     notes, trashedNotes, loading, activeNote, activeNoteId, setActiveNoteId,
     createNote, updateNote, deleteNote, restoreNote, permanentDeleteNote, emptyTrash,
-    refreshNotes: fetchNotes,
+    refreshNotes: fetchNotes, togglePin, toggleShare,
   };
 };

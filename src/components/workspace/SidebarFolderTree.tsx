@@ -41,6 +41,7 @@ interface SidebarFolderTreeProps {
   onFolderDragEnter: (e: React.DragEvent, folderId: string) => void;
   onFolderDragLeave: (e: React.DragEvent, folderId: string) => void;
   onDropOnFolder: (e: React.DragEvent, folderId: string) => void;
+  onTogglePin?: (id: string) => void;
 }
 
 const SidebarFolderTree = React.memo(({
@@ -49,7 +50,7 @@ const SidebarFolderTree = React.memo(({
   onToggleFolder, onSetActiveFolder, onRenameValueChange, onRenameSubmit,
   onStartRename, onCancelRename, onCreateNoteInFolder, onCreateSubfolder,
   onDeleteFolder, onSelectNote, onDeleteNote, onMoveNote, onDragStart,
-  onFolderDragEnter, onFolderDragLeave, onDropOnFolder,
+  onFolderDragEnter, onFolderDragLeave, onDropOnFolder, onTogglePin,
 }: SidebarFolderTreeProps) => {
   const folderNotes = notesByFolder[folder.id] || [];
   const childFolders = getChildFolders(folder.id);
@@ -193,6 +194,7 @@ const SidebarFolderTree = React.memo(({
               onFolderDragEnter={onFolderDragEnter}
               onFolderDragLeave={onFolderDragLeave}
               onDropOnFolder={onDropOnFolder}
+              onTogglePin={onTogglePin}
             />
           ))}
           {folderNotes.map((note) => (
@@ -205,6 +207,7 @@ const SidebarFolderTree = React.memo(({
               onDelete={onDeleteNote}
               onMove={onMoveNote}
               onDragStart={onDragStart}
+              onTogglePin={onTogglePin}
             />
           ))}
           {folderNotes.length === 0 && childFolders.length === 0 && (

@@ -12,6 +12,7 @@ import NotFound from "./pages/NotFound.tsx";
 import Admin from "./pages/Admin.tsx";
 import Upgrade from "./pages/Upgrade.tsx";
 import DesktopAuthCallback from "./pages/DesktopAuthCallback.tsx";
+import SharedNote from "./pages/SharedNote.tsx";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/upgrade" element={<Upgrade />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/desktop-auth-callback" element={<DesktopAuthCallback />} />
+            <Route path="/s/:token" element={<SharedNote />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

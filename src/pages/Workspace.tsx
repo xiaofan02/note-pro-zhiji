@@ -35,7 +35,7 @@ const Workspace = () => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [storageSettings, setStorageSettingsState] = useState<StorageSettings>(getStorageSettings);
-  const { notes, trashedNotes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, restoreNote, permanentDeleteNote, emptyTrash, refreshNotes } = useNotes(storageSettings);
+  const { notes, trashedNotes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, restoreNote, permanentDeleteNote, emptyTrash, refreshNotes, togglePin, toggleShare } = useNotes(storageSettings);
   const { tags, noteTagsMap, createTag, addTagToNote, removeTagFromNote, getTagsForNote } = useTags();
   const { folders, createFolder, renameFolder, deleteFolder, moveNoteToFolder, getChildFolders } = useFolders();
   const { importFile, acceptString } = useDocumentImport();
@@ -432,6 +432,7 @@ const Workspace = () => {
                 onFolderDragEnter={handleFolderDragEnter}
                 onFolderDragLeave={handleFolderDragLeave}
                 onDropOnFolder={handleDropOnFolder}
+                onTogglePin={togglePin}
               />
             ))}
 
@@ -465,6 +466,7 @@ const Workspace = () => {
                     onDelete={deleteNote}
                     onMove={handleMoveNote}
                     onDragStart={handleDragStart}
+                    onTogglePin={togglePin}
                   />
                 ))}
                 {unfolderedNotes.length === 0 && (
@@ -485,6 +487,7 @@ const Workspace = () => {
             onDelete={deleteNote}
             onMove={handleMoveNote}
             onDragStart={handleDragStart}
+            onTogglePin={togglePin}
           />
         ))}
       </div>
@@ -632,6 +635,8 @@ const Workspace = () => {
                     onAddTag={addTagToNote}
                     onRemoveTag={removeTagFromNote}
                     pageFontSize={pageFontSize}
+                    onTogglePin={togglePin}
+                    onToggleShare={toggleShare}
                   />
                 </div>
               ) : (
@@ -771,6 +776,8 @@ const Workspace = () => {
                     onAddTag={addTagToNote}
                     onRemoveTag={removeTagFromNote}
                     pageFontSize={pageFontSize}
+                    onTogglePin={togglePin}
+                    onToggleShare={toggleShare}
                   />
                 ) : (
                   <WorkspaceEmptyState onCreateNote={handleNewNote} />
