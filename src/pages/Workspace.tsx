@@ -2,11 +2,10 @@ import React, { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import { useNavigate, Link } from "react-router-dom";
 import {
   Sparkles, FileText, LogOut, Plus, Search, Moon, Sun, Crown,
-  FolderPlus, ArrowLeftRight, PanelLeftClose, PanelLeftOpen, Menu, X,
+  FolderPlus, PanelLeftClose, PanelLeftOpen, Menu, X,
 } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import DataMigration from "@/components/workspace/DataMigration";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
@@ -352,26 +351,6 @@ const Workspace = () => {
           <TooltipContent side="bottom" className="text-xs">新建目录</TooltipContent>
         </Tooltip>
         <NoteTemplates onCreateFromTemplate={handleCreateFromTemplate} />
-        <Sheet>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <SheetTrigger asChild>
-                <button className="px-2 py-2 rounded-lg bg-accent text-accent-foreground hover:bg-accent/80 transition-colors shrink-0">
-                  <ArrowLeftRight className="w-4 h-4" />
-                </button>
-              </SheetTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-xs">导入导出 / 数据迁移</TooltipContent>
-          </Tooltip>
-          <SheetContent side="left" className="w-[380px] sm:w-[420px] overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle>导入导出 / 数据迁移</SheetTitle>
-            </SheetHeader>
-            <div className="mt-4">
-              <DataMigration storageSettings={storageSettings} onMigrationComplete={refreshNotes} />
-            </div>
-          </SheetContent>
-        </Sheet>
       </div>
       <input type="file" ref={importInputRef} className="hidden" accept={acceptString} onChange={handleImportFile} />
 

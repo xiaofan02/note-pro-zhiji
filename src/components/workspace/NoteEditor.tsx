@@ -247,41 +247,92 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   };
 
   // Export functions
-  const exportAs = (format: "markdown" | "html" | "txt") => {
+  const htmlToMarkdown = (html: string): string => {
+    return html
+      .replace(/<h1[^>]*>(.*?)<\/h1>/gi, "# $1\n\n")
+      .replace(/<h2[^>]*>(.*?)<\/h2>/gi, "## $1\n\n")
+      .replace(/<h3[^>]*>(.*?)<\/h3>/gi, "### $1\n\n")
+      .replace(/<strong>(.*?)<\/strong>/gi, "**$1**")
+      .replace(/<em>(.*?)<\/em>/gi, "*$1*")
+      .replace(/<li[^>]*>(.*?)<\/li>/gi, "- $1\n")
+      .replace(/<blockquote[^>]*><p>(.*?)<\/p><\/blockquote>/gi, "> $1\n\n")
+      .replace(/<p>(.*?)<\/p>/gi, "$1\n\n")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<[^>]*>/g, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  };
+
+  const exportAs = async (format: "markdown" | "html" | "txt" | "csv" | "json" | "xml" | "rtf" | "docx" | "log") => {
     if (!editor) return;
     const html = editor.getHTML();
+    const plainText = editor.getText();
     let content: string;
     let ext: string;
     let mime: string;
+    let blob: Blob;
 
-    if (format === "html") {
-      content = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title></head><body>${html}</body></html>`;
-      ext = "html";
-      mime = "text/html";
-    } else if (format === "txt") {
-      content = editor.getText();
-      ext = "txt";
-      mime = "text/plain";
-    } else {
-      // Simple HTML to Markdown conversion
-      content = html
-        .replace(/<h1[^>]*>(.*?)<\/h1>/gi, "# $1\n\n")
-        .replace(/<h2[^>]*>(.*?)<\/h2>/gi, "## $1\n\n")
-        .replace(/<h3[^>]*>(.*?)<\/h3>/gi, "### $1\n\n")
-        .replace(/<strong>(.*?)<\/strong>/gi, "**$1**")
-        .replace(/<em>(.*?)<\/em>/gi, "*$1*")
-        .replace(/<li[^>]*>(.*?)<\/li>/gi, "- $1\n")
-        .replace(/<blockquote[^>]*><p>(.*?)<\/p><\/blockquote>/gi, "> $1\n\n")
-        .replace(/<p>(.*?)<\/p>/gi, "$1\n\n")
-        .replace(/<br\s*\/?>/gi, "\n")
-        .replace(/<[^>]*>/g, "")
-        .replace(/\n{3,}/g, "\n\n")
-        .trim();
-      ext = "md";
-      mime = "text/markdown";
+    switch (format) {
+      case "html":
+        content = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title></head><body>${html}</body></html>`;
+        ext = "html"; mime = "text/html";
+        blob = new Blob([content], { type: mime });
+        break;
+      case "txt":
+      case "log":
+        content = plainText;
+        ext = format; mime = "text/plain";
+        blob = new Blob([content], { type: mime });
+        break;
+      case "markdown":
+        content = htmlToMarkdown(html);
+        ext = "md"; mime = "text/markdown";
+        blob = new Blob([content], { type: mime });
+        break;
+      case "csv": {
+        // Convert text lines to CSV rows
+        const lines = plainText.split("\n").filter(l => l.trim());
+        content = lines.map(line => `"${line.replace(/"/g, '""')}"`).join("\n");
+        ext = "csv"; mime = "text/csv";
+        blob = new Blob([content], { type: mime });
+        break;
+      }
+      case "json": {
+        const jsonData = { title, content: html, text: plainText, exportedAt: new Date().toISOString() };
+        content = JSON.stringify(jsonData, null, 2);
+        ext = "json"; mime = "application/json";
+        blob = new Blob([content], { type: mime });
+        break;
+      }
+      case "xml": {
+        content = `<?xml version="1.0" encoding="UTF-8"?>\n<note>\n  <title>${title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</title>\n  <content><![CDATA[${html}]]></content>\n  <exportedAt>${new Date().toISOString()}</exportedAt>\n</note>`;
+        ext = "xml"; mime = "application/xml";
+        blob = new Blob([content], { type: mime });
+        break;
+      }
+      case "rtf": {
+        content = `{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Arial;}}\\f0\\fs24 ${plainText.replace(/\\/g, "\\\\").replace(/\{/g, "\\{").replace(/\}/g, "\\}").replace(/\n/g, "\\par ")}}`;
+        ext = "rtf"; mime = "application/rtf";
+        blob = new Blob([content], { type: mime });
+        break;
+      }
+      case "docx": {
+        try {
+          const { Document, Packer, Paragraph, TextRun } = await import("docx");
+          const paragraphs = plainText.split("\n").map(line => new Paragraph({ children: [new TextRun(line)] }));
+          const doc = new Document({ sections: [{ children: paragraphs }] });
+          blob = await Packer.toBlob(doc);
+          ext = "docx"; mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        } catch {
+          toast({ title: "导出失败", description: "DOCX 导出出错", variant: "destructive" });
+          return;
+        }
+        break;
+      }
+      default:
+        return;
     }
 
-    const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -370,13 +421,31 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => exportAs("markdown")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> Markdown
+                <Download className="w-3.5 h-3.5 mr-1.5" /> Markdown (.md)
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => exportAs("html")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> HTML
+                <Download className="w-3.5 h-3.5 mr-1.5" /> HTML (.html)
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => exportAs("txt")}>
-                <Download className="w-3.5 h-3.5 mr-1.5" /> 纯文本
+                <Download className="w-3.5 h-3.5 mr-1.5" /> 纯文本 (.txt)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("docx")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> Word (.docx)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("csv")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> CSV (.csv)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("json")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> JSON (.json)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("xml")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> XML (.xml)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("rtf")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> RTF (.rtf)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAs("log")}>
+                <Download className="w-3.5 h-3.5 mr-1.5" /> Log (.log)
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
