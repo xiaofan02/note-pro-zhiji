@@ -102,15 +102,15 @@ const SidebarNoteItem = React.memo(({
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>确认删除</AlertDialogTitle>
+              <AlertDialogTitle>移至回收站</AlertDialogTitle>
               <AlertDialogDescription>
-                确定要删除「{note.title || "无标题笔记"}」吗？此操作无法撤销。
+                确定要将「{note.title || "无标题笔记"}」移至回收站吗？可在30天内恢复。
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>取消</AlertDialogCancel>
               <AlertDialogAction onClick={() => onDelete(note.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                删除
+                移至回收站
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

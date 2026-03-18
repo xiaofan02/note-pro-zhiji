@@ -20,6 +20,7 @@ import SidebarNoteItem from "@/components/workspace/SidebarNoteItem";
 import SidebarFolderTree from "@/components/workspace/SidebarFolderTree";
 import WorkspaceEmptyState from "@/components/workspace/WorkspaceEmptyState";
 import UserAvatar from "@/components/workspace/UserAvatar";
+import TrashBin from "@/components/workspace/TrashBin";
 import { useDocumentImport } from "@/hooks/useDocumentImport";
 import { getStorageSettings, setStorageSettings, StorageSettings, localNotesStorage } from "@/lib/localNotesStorage";
 import { useToast } from "@/hooks/use-toast";
@@ -31,7 +32,7 @@ const Workspace = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [storageSettings, setStorageSettingsState] = useState<StorageSettings>(getStorageSettings);
-  const { notes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, refreshNotes } = useNotes(storageSettings);
+  const { notes, trashedNotes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, restoreNote, permanentDeleteNote, emptyTrash, refreshNotes } = useNotes(storageSettings);
   const { tags, noteTagsMap, createTag, addTagToNote, removeTagFromNote, getTagsForNote } = useTags();
   const { folders, createFolder, renameFolder, deleteFolder, moveNoteToFolder, getChildFolders } = useFolders();
   const { importFile, acceptString } = useDocumentImport();
@@ -503,6 +504,12 @@ const Workspace = () => {
                 </TooltipTrigger>
                 <TooltipContent side="right" className="text-xs">{isDark ? "切换到浅色模式" : "切换到深色模式"}</TooltipContent>
               </Tooltip>
+              <TrashBin
+                trashedNotes={trashedNotes}
+                onRestore={restoreNote}
+                onPermanentDelete={permanentDeleteNote}
+                onEmptyTrash={emptyTrash}
+              />
               <SettingsDialog
                 pageFontSize={pageFontSize}
                 onPageFontSizeChange={handlePageFontSizeChange}
