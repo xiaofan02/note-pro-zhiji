@@ -35,7 +35,7 @@ const Workspace = () => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [storageSettings, setStorageSettingsState] = useState<StorageSettings>(getStorageSettings);
-  const { notes, trashedNotes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, restoreNote, permanentDeleteNote, emptyTrash, refreshNotes } = useNotes(storageSettings);
+  const { notes, trashedNotes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, restoreNote, permanentDeleteNote, emptyTrash, refreshNotes, togglePin, toggleShare } = useNotes(storageSettings);
   const { tags, noteTagsMap, createTag, addTagToNote, removeTagFromNote, getTagsForNote } = useTags();
   const { folders, createFolder, renameFolder, deleteFolder, moveNoteToFolder, getChildFolders } = useFolders();
   const { importFile, acceptString } = useDocumentImport();
