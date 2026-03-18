@@ -65,6 +65,7 @@ jobs:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
         with:
+          tauriScript: npx tauri
           tagName: ${{ github.ref_name }}
           releaseName: '智记 AI v__VERSION__'
           releaseBody: |
