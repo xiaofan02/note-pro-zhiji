@@ -41,6 +41,7 @@ interface SidebarFolderTreeProps {
   onFolderDragEnter: (e: React.DragEvent, folderId: string) => void;
   onFolderDragLeave: (e: React.DragEvent, folderId: string) => void;
   onDropOnFolder: (e: React.DragEvent, folderId: string) => void;
+  onTogglePin?: (id: string) => void;
 }
 
 const SidebarFolderTree = React.memo(({
