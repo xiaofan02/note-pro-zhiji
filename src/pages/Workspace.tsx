@@ -34,6 +34,7 @@ const Workspace = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const { hasUpdate, updating, update: pwaUpdate } = usePwaUpdate();
   const [storageSettings, setStorageSettingsState] = useState<StorageSettings>(getStorageSettings);
   const { notes, trashedNotes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, restoreNote, permanentDeleteNote, emptyTrash, refreshNotes, togglePin, toggleShare } = useNotes(storageSettings);
   const { tags, noteTagsMap, createTag, addTagToNote, removeTagFromNote, getTagsForNote } = useTags();
