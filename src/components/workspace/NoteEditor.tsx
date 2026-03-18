@@ -263,7 +263,9 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
       .trim();
   };
 
-  const exportAs = async (format: "markdown" | "html" | "txt" | "csv" | "json" | "xml" | "rtf" | "docx" | "log") => {
+  type ExportFormat = "markdown" | "html" | "txt" | "csv" | "json" | "xml" | "rtf" | "docx" | "log" | "js" | "ts" | "py" | "java" | "go" | "rs" | "cpp" | "sql" | "sh" | "css" | "yaml" | "php" | "rb" | "swift" | "kt";
+
+  const exportAs = async (format: ExportFormat) => {
     if (!editor) return;
     const html = editor.getHTML();
     const plainText = editor.getText();
