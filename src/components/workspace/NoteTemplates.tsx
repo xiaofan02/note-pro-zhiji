@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  BookOpen, Calendar, Lightbulb, ListChecks, FileText, Target, Users, Code, Megaphone,
+  BookOpen, Calendar, Lightbulb, ListChecks, FileText, Target, Users, Code, Megaphone, Heart, MessageCircle,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator,
