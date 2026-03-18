@@ -1,0 +1,110 @@
+name: Build Tauri Desktop App
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Build platform'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - windows
+          - macos
+          - linux
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-tauri:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'ubuntu-22.04'
+            args: ''
+            os_name: 'linux'
+          - platform: 'windows-latest'
+            args: ''
+            os_name: 'windows'
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
+            os_name: 'macos-arm'
+          - platform: 'macos-latest'
+            args: '--target x86_64-apple-darwin'
+            os_name: 'macos-intel'
+
+    runs-on: ${{ matrix.platform }}
+    if: >-
+      github.event_name == 'push' ||
+      github.event.inputs.platform == 'all' ||
+      (github.event.inputs.platform == 'windows' && matrix.os_name == 'windows') ||
+      (github.event.inputs.platform == 'macos' && contains(matrix.os_name, 'macos')) ||
+      (github.event.inputs.platform == 'linux' && matrix.os_name == 'linux')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libxdo-dev
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: '智记 AI v__VERSION__'
+          releaseBody: |
+            智记 AI 桌面版更新
+            
+            ## 下载安装
+            - **Windows**: 下载 `.msi` 或 `.exe` 安装包
+            - **macOS (Apple Silicon)**: 下载 `_aarch64.dmg`
+            - **macOS (Intel)**: 下载 `_x64.dmg`
+            - **Linux**: 下载 `.deb` 或 `.AppImage`
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: smartnote-${{ matrix.os_name }}
+          path: |
+            src-tauri/target/release/bundle/**/*.deb
+            src-tauri/target/release/bundle/**/*.AppImage
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.exe
+            src-tauri/target/release/bundle/**/*.dmg
+          if-no-files-found: ignore
