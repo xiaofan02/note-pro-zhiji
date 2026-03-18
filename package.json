@@ -10,8 +10,11 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
-  },
+    "test:watch": "vitest",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  }
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "@lovable.dev/cloud-auth-js": "^0.0.3",
