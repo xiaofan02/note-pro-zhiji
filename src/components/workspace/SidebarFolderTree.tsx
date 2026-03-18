@@ -194,6 +194,7 @@ const SidebarFolderTree = React.memo(({
               onFolderDragEnter={onFolderDragEnter}
               onFolderDragLeave={onFolderDragLeave}
               onDropOnFolder={onDropOnFolder}
+              onTogglePin={onTogglePin}
             />
           ))}
           {folderNotes.map((note) => (
