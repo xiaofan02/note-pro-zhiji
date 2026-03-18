@@ -9,7 +9,7 @@ import {
 
 interface AiResultPanelProps {
   result: string;
-  type: "organize" | "summarize" | "rewrite" | "continue";
+  type: "organize" | "summarize" | "rewrite" | "continue" | "polish" | "expand";
   onAppend: () => void;
   onReplace: () => void;
   onClose: () => void;
