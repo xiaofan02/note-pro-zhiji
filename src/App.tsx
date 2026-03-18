@@ -31,6 +31,7 @@ const App = () => (
             <Route path="/upgrade" element={<Upgrade />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/desktop-auth-callback" element={<DesktopAuthCallback />} />
+            <Route path="/s/:token" element={<SharedNote />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
