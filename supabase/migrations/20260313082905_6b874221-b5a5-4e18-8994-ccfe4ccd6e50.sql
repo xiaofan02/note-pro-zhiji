@@ -1,0 +1,1 @@
+ALTER TABLE public.folders ADD COLUMN parent_id uuid REFERENCES public.folders(id) ON DELETE CASCADE DEFAULT NULL;
