@@ -1,6 +1,6 @@
 [package]
 name = "smartnote"
-version = "1.0.0"
+version = "1.0.1"
 description = "智记AI - 智能笔记应用"
 authors = ["you"]
 edition = "2021"
