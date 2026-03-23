@@ -40,8 +40,11 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { usePwaUpdate } from "@/hooks/usePwaUpdate";
 import { useTauriUpdate } from "@/hooks/useTauriUpdate";
 import UpdateBanner from "@/components/workspace/UpdateBanner";
+import { useAiConfig } from "@/hooks/useAiConfig";
 import { useRecentNotes } from "@/hooks/useRecentNotes";
-import { Clock, PackageOpen } from "lucide-react";
+import { Clock, PackageOpen, Zap } from "lucide-react";
+import { useWorkflow } from "@/hooks/useWorkflow";
+import WorkflowPanel from "@/components/workspace/WorkflowPanel";
 
 const Workspace = () => {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -414,6 +417,41 @@ const Workspace = () => {
   const { pushRecent, getRecent } = useRecentNotes();
   const [recentOpen, setRecentOpen] = useState(false);
 
+  // ─── Workflow ──────────────────────────────────────────────────
+  const [workflowPanelOpen, setWorkflowPanelOpen] = useState(false);
+  const { config: aiConfig } = { config: null } as any; // will be resolved via useAiConfig in engine
+  const workflowDeps = useMemo(() => ({
+    aiConfig: null, // engine fetches its own config
+    updateNote: async (id: string, updates: { title?: string; content?: string }) => {
+      await updateNote(id, updates);
+    },
+    addTagToNote: async (noteId: string, tagName: string) => {
+      // find or create tag then add
+      const existing = tags.find(t => t.name === tagName);
+      if (existing) {
+        addTagToNote(noteId, existing.id);
+      } else {
+        const newTag = await createTag(tagName);
+        if (newTag) addTagToNote(noteId, newTag.id);
+      }
+    },
+    moveNoteToFolder: async (noteId: string, folderId: string | null) => {
+      await moveNoteToFolder(noteId, folderId);
+    },
+    createNote: async (title: string, content: string, folderId?: string | null) => {
+      if (storageSettings.mode === "local") {
+        const now = new Date().toISOString();
+        const note = { id: crypto.randomUUID(), title, content, folder_id: folderId || null, created_at: now, updated_at: now };
+        await localNotesStorage.save(note, storageSettings.localPath);
+      } else if (user) {
+        await supabase.from("notes").insert({ user_id: user.id, title, content, folder_id: folderId || null });
+      }
+    },
+    refreshNotes,
+  }), [updateNote, tags, addTagToNote, createTag, moveNoteToFolder, storageSettings, user, refreshNotes]);
+
+  const { workflows, logs, createWorkflow, updateWorkflow, deleteWorkflow, toggleWorkflow, clearLogs, trigger: triggerWorkflow } = useWorkflow(workflowDeps);
+
   const handleSelectNote = useCallback(async (id: string, folderId: string | null) => {
     setActiveNoteId(id);
     setActiveFolderId(folderId);
@@ -426,6 +464,22 @@ const Workspace = () => {
     await fetchNoteContent(id);
     setContentLoading(false);
   }, [setActiveNoteId, fetchNoteContent, isMobile, notes, pushRecent]);
+
+  // Workflow-aware note update — fires on_note_save trigger
+  const handleUpdateNote = useCallback(async (id: string, updates: { title?: string; content?: string }) => {
+    await updateNote(id, updates);
+    const note = notes.find(n => n.id === id);
+    if (note) {
+      triggerWorkflow("on_note_save", {
+        noteId: id,
+        noteTitle: updates.title ?? note.title,
+        noteContent: updates.content ?? note.content,
+        noteFolderId: note.folder_id,
+        noteTags: (noteTagsMap[id] || []).map(tagId => tags.find(t => t.id === tagId)?.name || ""),
+        triggerType: "on_note_save",
+      });
+    }
+  }, [updateNote, notes, noteTagsMap, tags, triggerWorkflow]);
 
   const handleImportFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -856,6 +910,17 @@ const Workspace = () => {
             onPermanentDelete={permanentDeleteNote}
             onEmptyTrash={emptyTrash}
           />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setWorkflowPanelOpen(v => !v)}
+                className={cn("p-2 rounded-lg transition-colors", workflowPanelOpen ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted")}
+              >
+                <Zap className="w-4 h-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="text-xs">工作流</TooltipContent>
+          </Tooltip>
           <SettingsDialog
             pageFontSize={pageFontSize}
             onPageFontSizeChange={handlePageFontSizeChange}
@@ -994,7 +1059,7 @@ const Workspace = () => {
                   ) : (
                     <NoteEditor
                       note={activeNote}
-                      onUpdate={updateNote}
+                      onUpdate={handleUpdateNote}
                       tags={tags}
                       noteTags={getTagsForNote(activeNote.id)}
                       onCreateTag={createTag}
@@ -1135,7 +1200,7 @@ const Workspace = () => {
                   ) : (
                     <NoteEditor
                       note={activeNote}
-                      onUpdate={updateNote}
+                      onUpdate={handleUpdateNote}
                       tags={tags}
                       noteTags={getTagsForNote(activeNote.id)}
                       onCreateTag={createTag}
@@ -1179,6 +1244,21 @@ const Workspace = () => {
                   }
                 }}
               />
+              {/* Workflow Panel */}
+              {workflowPanelOpen && (
+                <div className="w-80 border-l border-border bg-card flex flex-col h-full shrink-0 overflow-hidden">
+                  <WorkflowPanel
+                    workflows={workflows}
+                    logs={logs}
+                    folders={folders}
+                    onCreate={createWorkflow}
+                    onUpdate={updateWorkflow}
+                    onDelete={deleteWorkflow}
+                    onToggle={toggleWorkflow}
+                    onClearLogs={clearLogs}
+                  />
+                </div>
+              )}
             </main>
           </>
         )}
