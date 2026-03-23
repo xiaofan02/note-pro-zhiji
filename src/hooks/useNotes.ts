@@ -14,6 +14,7 @@ export interface Note {
   deleted_at?: string | null;
   is_pinned?: boolean;
   share_token?: string | null;
+  _contentLoaded?: boolean; // internal flag for lazy loading
 }
 
 export const useNotes = (storageSettings?: StorageSettings) => {
@@ -39,10 +40,10 @@ export const useNotes = (storageSettings?: StorageSettings) => {
         toast({ title: "加载失败", description: e.message, variant: "destructive" });
       }
     } else {
-      // Fetch active notes
+      // Fetch active notes - exclude content for faster list loading
       const { data, error } = await supabase
         .from("notes")
-        .select("id, title, content, folder_id, created_at, updated_at, deleted_at, is_pinned, share_token")
+        .select("id, title, folder_id, created_at, updated_at, deleted_at, is_pinned, share_token")
         .is("deleted_at", null)
         .order("is_pinned", { ascending: false })
         .order("updated_at", { ascending: false });
@@ -50,22 +51,51 @@ export const useNotes = (storageSettings?: StorageSettings) => {
       if (error) {
         toast({ title: "加载失败", description: error.message, variant: "destructive" });
       } else {
-        setNotes(data || []);
+        setNotes((data || []).map(n => ({ ...n, content: "", _contentLoaded: false })));
       }
 
-      // Fetch trashed notes
+      // Fetch trashed notes metadata only
       const { data: trashed, error: trashError } = await supabase
         .from("notes")
-        .select("id, title, content, folder_id, created_at, updated_at, deleted_at, is_pinned, share_token")
+        .select("id, title, folder_id, created_at, updated_at, deleted_at, is_pinned, share_token")
         .not("deleted_at", "is", null)
         .order("deleted_at", { ascending: false });
 
       if (!trashError) {
-        setTrashedNotes(trashed || []);
+        setTrashedNotes((trashed || []).map(n => ({ ...n, content: "", _contentLoaded: false })));
       }
     }
     setLoading(false);
   }, [user, toast, isLocal, storageSettings?.localPath]);
+
+  /** Lazily load full content for a note (cloud mode only) */
+  const fetchNoteContent = useCallback(async (id: string): Promise<void> => {
+    if (isLocal) {
+      // Local mode: load from storage if not already loaded
+      const existing = notes.find(n => n.id === id);
+      if (existing?._contentLoaded) return;
+      try {
+        const full = await localNotesStorage.getOne(id, storageSettings?.localPath);
+        if (full) {
+          setNotes(prev => prev.map(n => n.id === id ? { ...full, _contentLoaded: true } : n));
+        }
+      } catch {}
+      return;
+    }
+    // Cloud mode: check if already loaded
+    const existing = notes.find(n => n.id === id);
+    if (existing?._contentLoaded) return;
+
+    const { data, error } = await supabase
+      .from("notes")
+      .select("content")
+      .eq("id", id)
+      .single();
+
+    if (!error && data) {
+      setNotes(prev => prev.map(n => n.id === id ? { ...n, content: data.content || "", _contentLoaded: true } : n));
+    }
+  }, [isLocal, notes, storageSettings?.localPath]);
 
   useEffect(() => {
     fetchNotes();
@@ -83,6 +113,7 @@ export const useNotes = (storageSettings?: StorageSettings) => {
         folder_id: folderId || null,
         created_at: now,
         updated_at: now,
+        _contentLoaded: true,
       };
       try {
         await localNotesStorage.save(note, storageSettings?.localPath);
@@ -95,13 +126,13 @@ export const useNotes = (storageSettings?: StorageSettings) => {
       const { data, error } = await supabase
         .from("notes")
         .insert({ user_id: user.id, title: "无标题笔记", content: "", folder_id: folderId || null })
-        .select("id, title, content, folder_id, created_at, updated_at, deleted_at, is_pinned, share_token")
+        .select("id, title, folder_id, created_at, updated_at, deleted_at, is_pinned, share_token")
         .single();
 
       if (error) {
         toast({ title: "创建失败", description: error.message, variant: "destructive" });
       } else if (data) {
-        setNotes((prev) => [data, ...prev]);
+        setNotes((prev) => [{ ...data, _contentLoaded: true }, ...prev]);
         setActiveNoteId(data.id);
       }
     }
@@ -114,9 +145,14 @@ export const useNotes = (storageSettings?: StorageSettings) => {
       const updated = { ...existing, ...updates, updated_at: new Date().toISOString() };
       try {
         await localNotesStorage.save(updated, storageSettings?.localPath);
-        setNotes((prev) =>
-          prev.map((n) => (n.id === id ? updated : n))
-        );
+        setNotes((prev) => {
+          const mapped = prev.map((n) => (n.id === id ? updated : n));
+          return [...mapped].sort((a, b) => {
+            if (a.is_pinned && !b.is_pinned) return -1;
+            if (!a.is_pinned && b.is_pinned) return 1;
+            return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+          });
+        });
       } catch (e: any) {
         toast({ title: "保存失败", description: e.message, variant: "destructive" });
       }
@@ -125,11 +161,18 @@ export const useNotes = (storageSettings?: StorageSettings) => {
       if (error) {
         toast({ title: "保存失败", description: error.message, variant: "destructive" });
       } else {
-        setNotes((prev) =>
-          prev.map((n) =>
-            n.id === id ? { ...n, ...updates, updated_at: new Date().toISOString() } : n
-          )
-        );
+        const now = new Date().toISOString();
+        setNotes((prev) => {
+          const updated = prev.map((n) =>
+            n.id === id ? { ...n, ...updates, updated_at: now } : n
+          );
+          // Re-sort: pinned first, then by updated_at desc
+          return [...updated].sort((a, b) => {
+            if (a.is_pinned && !b.is_pinned) return -1;
+            if (!a.is_pinned && b.is_pinned) return 1;
+            return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+          });
+        });
       }
     }
   };
@@ -264,13 +307,16 @@ export const useNotes = (storageSettings?: StorageSettings) => {
     }
   };
 
-  // Toggle share
+  // Toggle share (cloud only)
   const toggleShare = async (id: string): Promise<string | null> => {
+    if (isLocal) {
+      toast({ title: "本地模式不支持分享", description: "请切换到云端模式后使用分享功能", variant: "destructive" });
+      return null;
+    }
     const note = notes.find((n) => n.id === id);
     if (!note) return null;
 
     if (note.share_token) {
-      // Remove sharing
       const { error } = await supabase.from("notes").update({ share_token: null }).eq("id", id);
       if (!error) {
         setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, share_token: null } : n)));
@@ -278,7 +324,6 @@ export const useNotes = (storageSettings?: StorageSettings) => {
       }
       return null;
     } else {
-      // Create share token
       const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
       const { error } = await supabase.from("notes").update({ share_token: token }).eq("id", id);
       if (error) {
@@ -296,6 +341,6 @@ export const useNotes = (storageSettings?: StorageSettings) => {
   return {
     notes, trashedNotes, loading, activeNote, activeNoteId, setActiveNoteId,
     createNote, updateNote, deleteNote, restoreNote, permanentDeleteNote, emptyTrash,
-    refreshNotes: fetchNotes, togglePin, toggleShare,
+    refreshNotes: fetchNotes, fetchNoteContent, togglePin, toggleShare,
   };
 };

@@ -19,16 +19,41 @@ interface SidebarNoteItemProps {
   onMove: (noteId: string, folderId: string | null) => void;
   onDragStart: (e: React.DragEvent, noteId: string) => void;
   onTogglePin?: (id: string) => void;
+  searchQuery?: string;
 }
 
 const SidebarNoteItem = React.memo(({
-  note, isActive, folders, onSelect, onDelete, onMove, onDragStart, onTogglePin,
+  note, isActive, folders, onSelect, onDelete, onMove, onDragStart, onTogglePin, searchQuery = "",
 }: SidebarNoteItemProps) => {
   const handleClick = useCallback(() => {
     onSelect(note.id, note.folder_id);
   }, [note.id, note.folder_id, onSelect]);
 
-  const plainText = note.content?.replace(/<[^>]*>/g, "").slice(0, 60) || "空笔记";
+  const plainText = note.content?.replace(/<[^>]*>/g, "").slice(0, 120) || "空笔记";
+
+  // Highlight matching text
+  const highlight = (text: string, query: string) => {
+    if (!query.trim()) return <span>{text}</span>;
+    const idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return <span>{text}</span>;
+    return (
+      <span>
+        {text.slice(0, idx)}
+        <mark className="bg-primary/20 text-foreground rounded px-0.5">{text.slice(idx, idx + query.length)}</mark>
+        {text.slice(idx + query.length)}
+      </span>
+    );
+  };
+
+  // For content preview: find the match context
+  const getContentPreview = () => {
+    if (!searchQuery.trim()) return plainText.slice(0, 60);
+    const idx = plainText.toLowerCase().indexOf(searchQuery.toLowerCase());
+    if (idx === -1) return plainText.slice(0, 60);
+    const start = Math.max(0, idx - 20);
+    const snippet = (start > 0 ? "…" : "") + plainText.slice(start, start + 80);
+    return snippet;
+  };
 
   return (
     <div
@@ -50,11 +75,11 @@ const SidebarNoteItem = React.memo(({
         <div className="flex items-center gap-1">
           {note.is_pinned && <Pin className="w-3 h-3 text-primary shrink-0" />}
           <p className="text-sm font-medium truncate">
-            {note.title || "无标题笔记"}
+            {searchQuery ? highlight(note.title || "无标题笔记", searchQuery) : (note.title || "无标题笔记")}
           </p>
         </div>
         <p className="text-xs text-muted-foreground truncate mt-0.5 leading-relaxed">
-          {plainText}
+          {searchQuery ? highlight(getContentPreview(), searchQuery) : plainText.slice(0, 60)}
         </p>
         <p className="text-[11px] text-muted-foreground/50 mt-1">
           {new Date(note.updated_at).toLocaleDateString("zh-CN")}

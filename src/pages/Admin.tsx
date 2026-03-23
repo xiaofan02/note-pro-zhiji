@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Shield, Users, Bot, BarChart3, ArrowLeft, Save, Loader2 } from "lucide-react";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from "recharts";
 
 interface UserInfo {
   user_id: string;
@@ -12,10 +14,15 @@ interface UserInfo {
   avatar_url: string | null;
   role: string;
   usage_today: number;
+  email?: string;
+}
+
+interface DailyUsage {
+  date: string;
+  count: number;
 }
 
 const Admin = () => {
-  const { user } = useAuth();
   const { isAdmin, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -27,18 +34,57 @@ const Admin = () => {
   const [savingConfig, setSavingConfig] = useState(false);
   const [totalUsageToday, setTotalUsageToday] = useState(0);
   const [tab, setTab] = useState<"users" | "ai" | "stats">("users");
+  const [trendRange, setTrendRange] = useState<7 | 30>(7);
+  const [trendData, setTrendData] = useState<DailyUsage[]>([]);
+  const [loadingTrend, setLoadingTrend] = useState(false);
 
   useEffect(() => {
-    if (!roleLoading && !isAdmin) {
-      navigate("/workspace");
-    }
+    if (!roleLoading && !isAdmin) navigate("/workspace");
   }, [isAdmin, roleLoading, navigate]);
 
   useEffect(() => {
-    if (isAdmin) {
-      loadData();
-    }
+    if (isAdmin) loadData();
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (isAdmin && tab === "stats") loadTrend(trendRange);
+  }, [isAdmin, tab, trendRange]);
+
+  const loadTrend = async (days: 7 | 30) => {
+    setLoadingTrend(true);
+    try {
+      const since = new Date();
+      since.setDate(since.getDate() - days + 1);
+      since.setHours(0, 0, 0, 0);
+
+      const { data } = await supabase
+        .from("ai_usage")
+        .select("created_at")
+        .gte("created_at", since.toISOString());
+
+      // Build a map of date -> count
+      const countMap: Record<string, number> = {};
+      for (let i = 0; i < days; i++) {
+        const d = new Date(since);
+        d.setDate(since.getDate() + i);
+        const key = d.toISOString().slice(0, 10);
+        countMap[key] = 0;
+      }
+      (data || []).forEach((row: any) => {
+        const key = row.created_at.slice(0, 10);
+        if (key in countMap) countMap[key]++;
+      });
+
+      const result: DailyUsage[] = Object.entries(countMap).map(([date, count]) => ({
+        date: date.slice(5), // MM-DD
+        count,
+      }));
+      setTrendData(result);
+    } catch (e) {
+      console.error(e);
+    }
+    setLoadingTrend(false);
+  };
 
   const loadData = async () => {
     setLoadingUsers(true);
@@ -55,12 +101,22 @@ const Admin = () => {
       const roleMap: Record<string, string> = {};
       (roles || []).forEach((r: any) => { roleMap[r.user_id] = r.role; });
 
+      // Try to get emails via RPC (requires a get_user_emails function in Supabase)
+      let emailMap: Record<string, string> = {};
+      try {
+        const { data: emailData } = await supabase.rpc("get_user_emails" as any);
+        if (Array.isArray(emailData)) {
+          emailData.forEach((e: any) => { if (e.user_id && e.email) emailMap[e.user_id] = e.email; });
+        }
+      } catch { /* RPC not available, skip */ }
+
       const userList: UserInfo[] = (profiles || []).map((p: any) => ({
         user_id: p.user_id,
         display_name: p.display_name,
         avatar_url: p.avatar_url,
         role: roleMap[p.user_id] || "free",
         usage_today: usageMap[p.user_id] || 0,
+        email: emailMap[p.user_id],
       }));
 
       setUsers(userList);
@@ -78,22 +134,14 @@ const Admin = () => {
   };
 
   const updateUserRole = async (userId: string, newRole: string) => {
-    // Check if a role record exists first
     const { data: existing } = await supabase.from("user_roles").select("id").eq("user_id", userId).maybeSingle();
-    
     let error;
     if (existing) {
-      // Update existing record
       ({ error } = await supabase.from("user_roles").update({ role: newRole as any, updated_at: new Date().toISOString() }).eq("user_id", userId));
     } else {
-      // Insert new record
       ({ error } = await supabase.from("user_roles").insert({ user_id: userId, role: newRole as any }));
     }
-
-    if (error) {
-      toast({ title: "更新失败", description: error.message, variant: "destructive" });
-      return;
-    }
+    if (error) { toast({ title: "更新失败", description: error.message, variant: "destructive" }); return; }
     toast({ title: "角色已更新" });
     setUsers((prev) => prev.map((u) => u.user_id === userId ? { ...u, role: newRole } : u));
   };
@@ -113,7 +161,6 @@ const Admin = () => {
   if (roleLoading) {
     return <div className="flex items-center justify-center h-screen"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
   }
-
   if (!isAdmin) return null;
 
   return (
@@ -157,11 +204,14 @@ const Admin = () => {
                   <div key={u.user_id} className="px-6 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground">
-                        {u.display_name?.[0]?.toUpperCase() || "?"}
+                        {u.display_name?.[0]?.toUpperCase() || u.email?.[0]?.toUpperCase() || "?"}
                       </div>
                       <div>
                         <p className="text-sm font-medium text-foreground">{u.display_name || "未命名"}</p>
-                        <p className="text-xs text-muted-foreground">今日 AI 用量: {u.usage_today}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {u.email ? u.email : `ID: ${u.user_id.slice(0, 8)}…`}
+                        </p>
+                        <p className="text-xs text-muted-foreground/70">今日 AI 用量: {u.usage_today}</p>
                       </div>
                     </div>
                     <select value={u.role} onChange={(e) => updateUserRole(u.user_id, e.target.value)}
@@ -187,7 +237,6 @@ const Admin = () => {
                 <option value="custom">自定义（DeepSeek / 通义千问 / OpenAI 等）</option>
               </select>
             </div>
-
             {aiConfig.provider === "custom" && (
               <>
                 <div className="space-y-1.5">
@@ -204,20 +253,17 @@ const Admin = () => {
                 </div>
               </>
             )}
-
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-foreground">模型名称</label>
               <input type="text" value={aiConfig.model || ""} onChange={(e) => setAiConfig({ ...aiConfig, model: e.target.value })}
                 placeholder="google/gemini-3-flash-preview"
                 className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
             </div>
-
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-foreground">免费用户每日 AI 调用上限</label>
               <input type="number" value={dailyLimit} onChange={(e) => setDailyLimit(parseInt(e.target.value) || 0)} min={0}
                 className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
             </div>
-
             <button onClick={saveAiConfig} disabled={savingConfig}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
               {savingConfig ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} 保存配置
@@ -226,18 +272,54 @@ const Admin = () => {
         )}
 
         {tab === "stats" && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-card rounded-lg border border-border p-6">
-              <p className="text-xs text-muted-foreground mb-1">总用户数</p>
-              <p className="text-3xl font-bold text-foreground">{users.length}</p>
+          <div className="space-y-4">
+            {/* Summary cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-card rounded-lg border border-border p-6">
+                <p className="text-xs text-muted-foreground mb-1">总用户数</p>
+                <p className="text-3xl font-bold text-foreground">{users.length}</p>
+              </div>
+              <div className="bg-card rounded-lg border border-border p-6">
+                <p className="text-xs text-muted-foreground mb-1">今日 AI 调用</p>
+                <p className="text-3xl font-bold text-foreground">{totalUsageToday}</p>
+              </div>
+              <div className="bg-card rounded-lg border border-border p-6">
+                <p className="text-xs text-muted-foreground mb-1">Pro 用户数</p>
+                <p className="text-3xl font-bold text-foreground">{users.filter((u) => u.role === "pro" || u.role === "admin").length}</p>
+              </div>
             </div>
+
+            {/* Trend chart */}
             <div className="bg-card rounded-lg border border-border p-6">
-              <p className="text-xs text-muted-foreground mb-1">今日 AI 调用</p>
-              <p className="text-3xl font-bold text-foreground">{totalUsageToday}</p>
-            </div>
-            <div className="bg-card rounded-lg border border-border p-6">
-              <p className="text-xs text-muted-foreground mb-1">Pro 用户数</p>
-              <p className="text-3xl font-bold text-foreground">{users.filter((u) => u.role === "pro" || u.role === "admin").length}</p>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-semibold text-foreground">AI 调用趋势</p>
+                <div className="flex gap-1 bg-muted p-0.5 rounded-md">
+                  {([7, 30] as const).map((d) => (
+                    <button key={d} onClick={() => setTrendRange(d)}
+                      className={`px-3 py-1 rounded text-xs font-medium transition-colors ${trendRange === d ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                      {d}天
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {loadingTrend ? (
+                <div className="h-48 flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={trendData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} className="text-muted-foreground" />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} className="text-muted-foreground" />
+                    <Tooltip
+                      contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                      formatter={(v: number) => [v, "调用次数"]}
+                    />
+                    <Bar dataKey="count" name="调用次数" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
         )}

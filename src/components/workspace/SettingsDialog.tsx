@@ -40,7 +40,14 @@ const SettingsDialog = ({
 }: SettingsDialogProps) => {
   const isDesktop = isTauri();
 
-  const handleModeChange = (mode: "cloud" | "local") => {
+  const handleModeChange = async (mode: "cloud" | "local") => {
+    // On Tauri, switching to local mode auto-prompts for directory if none set
+    if (mode === "local" && isDesktop && !storageSettings.localPath) {
+      const dir = await localNotesStorage.pickDirectory();
+      if (!dir) return; // user cancelled, don't switch mode
+      onStorageSettingsChange({ mode, localPath: dir });
+      return;
+    }
     const next = { ...storageSettings, mode };
     onStorageSettingsChange(next);
   };
