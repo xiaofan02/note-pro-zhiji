@@ -328,6 +328,40 @@ const Workspace = () => {
     if (isMobile) setMobileSidebarOpen(false);
   }, [createNote, activeFolderId, isMobile]);
 
+  // ─── Workflow (must be declared before useEffect that uses triggerWorkflow) ──
+  const [workflowPanelOpen, setWorkflowPanelOpen] = useState(false);
+  const { config: aiConfig } = useAiConfig();
+  const workflowDeps = useMemo(() => ({
+    aiConfig,
+    updateNote: async (id: string, updates: { title?: string; content?: string }) => {
+      await updateNote(id, updates);
+    },
+    addTagToNote: async (noteId: string, tagName: string) => {
+      const existing = tags.find(t => t.name === tagName);
+      if (existing) {
+        addTagToNote(noteId, existing.id);
+      } else {
+        const newTag = await createTag(tagName);
+        if (newTag) addTagToNote(noteId, newTag.id);
+      }
+    },
+    moveNoteToFolder: async (noteId: string, folderId: string | null) => {
+      await moveNoteToFolder(noteId, folderId);
+    },
+    createNote: async (title: string, content: string, folderId?: string | null) => {
+      if (storageSettings.mode === "local") {
+        const now = new Date().toISOString();
+        const note = { id: crypto.randomUUID(), title, content, folder_id: folderId || null, created_at: now, updated_at: now };
+        await localNotesStorage.save(note, storageSettings.localPath);
+      } else if (user) {
+        await supabase.from("notes").insert({ user_id: user.id, title, content, folder_id: folderId || null });
+      }
+    },
+    refreshNotes,
+  }), [aiConfig, updateNote, tags, addTagToNote, createTag, moveNoteToFolder, storageSettings, user, refreshNotes]);
+
+  const { workflows, logs, createWorkflow, updateWorkflow, deleteWorkflow, toggleWorkflow, clearLogs, trigger: triggerWorkflow } = useWorkflow(workflowDeps);
+
   // Trigger on_note_create after a new note is created (activeNoteId changes to a brand-new note)
   const prevActiveNoteIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -437,41 +471,6 @@ const Workspace = () => {
 
   const { pushRecent, getRecent } = useRecentNotes();
   const [recentOpen, setRecentOpen] = useState(false);
-
-  // ─── Workflow ──────────────────────────────────────────────────
-  const [workflowPanelOpen, setWorkflowPanelOpen] = useState(false);
-  const { config: aiConfig } = useAiConfig();
-  const workflowDeps = useMemo(() => ({
-    aiConfig,
-    updateNote: async (id: string, updates: { title?: string; content?: string }) => {
-      await updateNote(id, updates);
-    },
-    addTagToNote: async (noteId: string, tagName: string) => {
-      // find or create tag then add
-      const existing = tags.find(t => t.name === tagName);
-      if (existing) {
-        addTagToNote(noteId, existing.id);
-      } else {
-        const newTag = await createTag(tagName);
-        if (newTag) addTagToNote(noteId, newTag.id);
-      }
-    },
-    moveNoteToFolder: async (noteId: string, folderId: string | null) => {
-      await moveNoteToFolder(noteId, folderId);
-    },
-    createNote: async (title: string, content: string, folderId?: string | null) => {
-      if (storageSettings.mode === "local") {
-        const now = new Date().toISOString();
-        const note = { id: crypto.randomUUID(), title, content, folder_id: folderId || null, created_at: now, updated_at: now };
-        await localNotesStorage.save(note, storageSettings.localPath);
-      } else if (user) {
-        await supabase.from("notes").insert({ user_id: user.id, title, content, folder_id: folderId || null });
-      }
-    },
-    refreshNotes,
-  }), [aiConfig, updateNote, tags, addTagToNote, createTag, moveNoteToFolder, storageSettings, user, refreshNotes]);
-
-  const { workflows, logs, createWorkflow, updateWorkflow, deleteWorkflow, toggleWorkflow, clearLogs, trigger: triggerWorkflow } = useWorkflow(workflowDeps);
 
   const handleSelectNote = useCallback(async (id: string, folderId: string | null) => {
     setActiveNoteId(id);

@@ -422,14 +422,49 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
         try {
           const { default: jsPDF } = await import("jspdf");
           const { default: html2canvas } = await import("html2canvas");
-          const editorEl = document.querySelector(".ProseMirror") as HTMLElement;
-          if (!editorEl) { toast({ title: "导出失败", description: "找不到编辑器内容", variant: "destructive" }); return; }
-          const canvas = await html2canvas(editorEl, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
-          const imgData = canvas.toDataURL("image/png");
+          const noteTitle = title || "笔记";
+          const now = new Date().toLocaleString("zh-CN");
+          // 构建一个独立的浅色 HTML 容器用于截图，不影响页面显示
+          const wrapper = document.createElement("div");
+          wrapper.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:794px;background:#ffffff;color:#1a1a1a;font-family:'Microsoft YaHei',Arial,sans-serif;font-size:14px;line-height:1.8;padding:40px 48px;box-sizing:border-box;";
+          wrapper.innerHTML = `
+            <div style="border-bottom:2px solid #4f46e5;padding-bottom:12px;margin-bottom:24px;">
+              <div style="font-size:22px;font-weight:700;color:#1a1a1a;margin-bottom:4px;">${noteTitle}</div>
+              <div style="font-size:12px;color:#888;">导出时间：${now}</div>
+            </div>
+            <div class="pdf-content" style="color:#1a1a1a;">${html}</div>
+            <div style="margin-top:32px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:11px;color:#aaa;text-align:center;">由 智记AI 导出 · ${now}</div>
+          `;
+          // 注入内容样式
+          const style = document.createElement("style");
+          style.textContent = `
+            .pdf-content * { color: #1a1a1a !important; }
+            .pdf-content h1 { font-size:20px;font-weight:700;margin:16px 0 8px;border-bottom:1px solid #e5e7eb;padding-bottom:6px; }
+            .pdf-content h2 { font-size:17px;font-weight:600;margin:14px 0 6px; }
+            .pdf-content h3 { font-size:15px;font-weight:600;margin:12px 0 5px; }
+            .pdf-content p { margin:0 0 10px; }
+            .pdf-content ul,.pdf-content ol { padding-left:20px;margin:6px 0 10px; }
+            .pdf-content li { margin-bottom:3px; }
+            .pdf-content blockquote { border-left:4px solid #4f46e5;margin:10px 0;padding:6px 14px;background:#f5f3ff;border-radius:0 4px 4px 0; }
+            .pdf-content pre { background:#1e1e2e !important;padding:12px 14px;border-radius:6px;margin:10px 0;overflow:hidden; }
+            .pdf-content pre * { color:#cdd6f4 !important; }
+            .pdf-content code { background:#f3f4f6;color:#e11d48 !important;padding:1px 4px;border-radius:3px;font-size:12px; }
+            .pdf-content pre code { background:none;color:#cdd6f4 !important; }
+            .pdf-content table { width:100%;border-collapse:collapse;margin:10px 0; }
+            .pdf-content th { background:#4f46e5 !important;color:#fff !important;padding:7px 10px;text-align:left; }
+            .pdf-content td { padding:6px 10px;border-bottom:1px solid #e5e7eb; }
+            .pdf-content img { max-width:100%;border-radius:4px; }
+            .pdf-content a { color:#4f46e5 !important;text-decoration:underline; }
+            .pdf-content hr { border:none;border-top:1px solid #e5e7eb;margin:16px 0; }
+          `;
+          wrapper.appendChild(style);
+          document.body.appendChild(wrapper);
+          const canvas = await html2canvas(wrapper, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false });
+          document.body.removeChild(wrapper);
           const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
           const pageW = pdf.internal.pageSize.getWidth();
           const pageH = pdf.internal.pageSize.getHeight();
-          const margin = 15;
+          const margin = 0;
           const contentW = pageW - margin * 2;
           const imgH = (canvas.height * contentW) / canvas.width;
           let y = margin;
@@ -447,8 +482,8 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
             srcY += sliceH;
             if (remaining > 0) { pdf.addPage(); y = margin; }
           }
-          pdf.save(`${title || "笔记"}.pdf`);
-          toast({ title: "导出成功", description: "已导出为 PDF" });
+          pdf.save(`${noteTitle}.pdf`);
+          toast({ title: "导出成功", description: "已导出为 PDF 文件" });
         } catch (e: any) {
           toast({ title: "PDF 导出失败", description: e.message, variant: "destructive" });
         }
