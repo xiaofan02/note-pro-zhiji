@@ -36,6 +36,8 @@ const SidebarNoteItem = React.memo(({
   }, [note.id, note.folder_id, onSelect, batchMode, onBatchToggle]);
 
   const plainText = note.content?.replace(/<[^>]*>/g, "").slice(0, 120) || "空笔记";
+  const wordCount = note.content ? note.content.replace(/<[^>]*>/g, "").replace(/\s+/g, "").length : 0;
+  const readMins = Math.max(1, Math.ceil(wordCount / 300));
 
   // Highlight matching text
   const highlight = (text: string, query: string) => {
@@ -87,8 +89,16 @@ const SidebarNoteItem = React.memo(({
         <p className="text-xs text-muted-foreground truncate mt-0.5 leading-relaxed">
           {searchQuery ? highlight(getContentPreview(), searchQuery) : plainText.slice(0, 60)}
         </p>
-        <p className="text-[11px] text-muted-foreground/50 mt-1">
-          {new Date(note.updated_at).toLocaleDateString("zh-CN")}
+        <p className="text-[11px] text-muted-foreground/50 mt-1 flex items-center gap-1.5">
+          <span>{new Date(note.updated_at).toLocaleDateString("zh-CN")}</span>
+          {wordCount > 0 && (
+            <>
+              <span className="opacity-40">·</span>
+              <span>{wordCount} 字</span>
+              <span className="opacity-40">·</span>
+              <span>约 {readMins} 分钟</span>
+            </>
+          )}
         </p>
       </div>
       {!batchMode && (

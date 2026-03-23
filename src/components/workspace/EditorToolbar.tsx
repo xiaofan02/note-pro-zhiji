@@ -355,6 +355,13 @@ const EditorToolbar = ({ editor, onInsertImage }: EditorToolbarProps) => {
                 className="px-3 py-1.5 text-xs rounded hover:bg-destructive/10 hover:text-destructive text-left">删除当前行</button>
               <button onClick={() => (editor.chain().focus() as any).deleteTable().run()}
                 className="px-3 py-1.5 text-xs rounded hover:bg-destructive/10 hover:text-destructive text-left">删除整个表格</button>
+              <div className="h-px bg-border my-0.5" />
+              <button onClick={() => (editor.chain().focus() as any).mergeCells().run()}
+                className="px-3 py-1.5 text-xs rounded hover:bg-accent text-left">合并选中单元格</button>
+              <button onClick={() => (editor.chain().focus() as any).splitCell().run()}
+                className="px-3 py-1.5 text-xs rounded hover:bg-accent text-left">拆分单元格</button>
+              <button onClick={() => (editor.chain().focus() as any).toggleHeaderCell().run()}
+                className="px-3 py-1.5 text-xs rounded hover:bg-accent text-left">切换表头单元格</button>
             </div>
           </PopoverContent>
         </Popover>

@@ -277,8 +277,24 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
         }
       }
     };
+    const handleDrop = (event: DragEvent) => {
+      const files = event.dataTransfer?.files;
+      if (!files || files.length === 0) return;
+      for (const file of Array.from(files)) {
+        if (file.type.startsWith("image/")) {
+          event.preventDefault();
+          event.stopPropagation();
+          handleImageInsertRef.current(file);
+          return;
+        }
+      }
+    };
     editorDom.addEventListener("paste", handlePaste);
-    return () => editorDom.removeEventListener("paste", handlePaste);
+    editorDom.addEventListener("drop", handleDrop);
+    return () => {
+      editorDom.removeEventListener("paste", handlePaste);
+      editorDom.removeEventListener("drop", handleDrop);
+    };
   }, [editor]);
 
   // Core AI action handler

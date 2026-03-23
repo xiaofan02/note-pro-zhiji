@@ -40,6 +40,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { usePwaUpdate } from "@/hooks/usePwaUpdate";
 import { useTauriUpdate } from "@/hooks/useTauriUpdate";
 import UpdateBanner from "@/components/workspace/UpdateBanner";
+import { useRecentNotes } from "@/hooks/useRecentNotes";
+import { Clock, PackageOpen } from "lucide-react";
 
 const Workspace = () => {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -146,6 +148,26 @@ const Workspace = () => {
     setSelectedNoteIds(new Set());
     setBatchMode(false);
   };
+
+  const handleBatchExport = useCallback(async () => {
+    const selected = notes.filter(n => selectedNoteIds.has(n.id));
+    if (selected.length === 0) return;
+    // Export as single markdown file with all notes
+    const content = selected.map(n => {
+      const text = n.content?.replace(/<[^>]*>/g, "") || "";
+      return `# ${n.title || "无标题笔记"}\n\n${text}\n\n---\n`;
+    }).join("\n");
+    const blob = new Blob([content], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `笔记导出_${new Date().toLocaleDateString("zh-CN").replace(/\//g, "-")}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "导出成功", description: `已导出 ${selected.length} 篇笔记` });
+    setSelectedNoteIds(new Set());
+    setBatchMode(false);
+  }, [notes, selectedNoteIds, toast]);
 
   // ─── Handlers ──────────────────────────────────────────────────
 
@@ -335,6 +357,36 @@ const Workspace = () => {
     return () => window.removeEventListener("keydown", handler);
   }, [handleNewNote, isMobile]);
 
+  // ─── Mobile swipe gesture to open/close sidebar ────────────────
+  useEffect(() => {
+    if (!isMobile) return;
+    let startX = 0;
+    let startY = 0;
+    const onTouchStart = (e: TouchEvent) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = e.changedTouches[0].clientY - startY;
+      // Only trigger if horizontal swipe is dominant and long enough
+      if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx)) return;
+      if (dx > 0 && startX < 40) {
+        // Swipe right from left edge → open sidebar
+        setMobileSidebarOpen(true);
+      } else if (dx < 0 && mobileSidebarOpen) {
+        // Swipe left → close sidebar
+        setMobileSidebarOpen(false);
+      }
+    };
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [isMobile, mobileSidebarOpen]);
+
   const handleCreateFromTemplate = useCallback(async (title: string, content: string) => {
     if (!user) return;
     if (storageSettings.mode === "local") {
@@ -359,15 +411,21 @@ const Workspace = () => {
     if (isMobile) setMobileSidebarOpen(false);
   }, [user, storageSettings, activeFolderId, refreshNotes, setActiveNoteId, toast, isMobile]);
 
+  const { pushRecent, getRecent } = useRecentNotes();
+  const [recentOpen, setRecentOpen] = useState(false);
+
   const handleSelectNote = useCallback(async (id: string, folderId: string | null) => {
     setActiveNoteId(id);
     setActiveFolderId(folderId);
     if (isMobile) setMobileSidebarOpen(false);
+    // Record recent
+    const note = notes.find(n => n.id === id);
+    if (note) pushRecent(note);
     // Lazy load content if not yet loaded
     setContentLoading(true);
     await fetchNoteContent(id);
     setContentLoading(false);
-  }, [setActiveNoteId, fetchNoteContent, isMobile]);
+  }, [setActiveNoteId, fetchNoteContent, isMobile, notes, pushRecent]);
 
   const handleImportFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -404,8 +462,20 @@ const Workspace = () => {
     if (showFavoritesOnly) result = result.filter((n) => n.is_favorited);
     if (selectedTagId) result = result.filter((n) => (noteTagsMap[n.id] || []).includes(selectedTagId));
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter((n) => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q));
+      const q = searchQuery.toLowerCase().trim();
+      // Fuzzy match: all query chars appear in order in the target
+      const fuzzyMatch = (text: string) => {
+        const t = text.toLowerCase();
+        // First try substring match (higher priority)
+        if (t.includes(q)) return true;
+        // Then try fuzzy: every char of q appears in order in t
+        let qi = 0;
+        for (let i = 0; i < t.length && qi < q.length; i++) {
+          if (t[i] === q[qi]) qi++;
+        }
+        return qi === q.length;
+      };
+      result = result.filter((n) => fuzzyMatch(n.title) || fuzzyMatch(n.content.replace(/<[^>]*>/g, "")));
     }
     // Sort: pinned always first, then by selected order
     result = [...result].sort((a, b) => {
@@ -509,14 +579,42 @@ const Workspace = () => {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button onClick={() => setRecentOpen(v => !v)}
+                className={cn("p-2 rounded-lg transition-colors shrink-0", recentOpen ? "bg-primary/20 text-primary" : "bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted")}>
+                <Clock className="w-3.5 h-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs">最近打开</TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
+      {/* Recent notes quick access */}
+      {recentOpen && (
+        <div className="mx-3 mb-2 rounded-lg border border-border bg-muted/30 overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/50">
+            <span className="text-[11px] font-medium text-muted-foreground">最近打开</span>
+            <button onClick={() => setRecentOpen(false)} className="text-[11px] text-muted-foreground/60 hover:text-foreground transition-colors">收起</button>
+          </div>
+          {getRecent().length === 0 ? (
+            <p className="text-xs text-muted-foreground/50 px-3 py-2">暂无记录</p>
+          ) : (
+            getRecent().map(r => (
+              <button key={r.id} onClick={() => { handleSelectNote(r.id, r.folderId); setRecentOpen(false); }}
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors flex items-center gap-2 truncate">
+                <Clock className="w-3 h-3 text-muted-foreground/50 shrink-0" />
+                <span className="truncate">{r.title || "无标题笔记"}</span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+
       {/* Action buttons */}
       <div className="px-3 pb-2 flex gap-1.5">
-        <button
-          onClick={handleNewNote}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-opacity shadow-sm whitespace-nowrap overflow-hidden"
+        <button          onClick={handleNewNote}          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-opacity shadow-sm whitespace-nowrap overflow-hidden"
         >
           <Plus className="w-4 h-4 shrink-0" />
           <span className="truncate">新建笔记</span>
@@ -572,6 +670,9 @@ const Workspace = () => {
           </DropdownMenu>
           <button onClick={handleBatchDelete} className="px-2 py-1 rounded text-xs bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors flex items-center gap-1">
             <Trash2 className="w-3 h-3" /> 删除
+          </button>
+          <button onClick={handleBatchExport} className="px-2 py-1 rounded text-xs bg-accent text-accent-foreground hover:bg-accent/80 transition-colors flex items-center gap-1">
+            <PackageOpen className="w-3 h-3" /> 导出
           </button>
         </div>
       )}
