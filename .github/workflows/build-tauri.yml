@@ -44,6 +44,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: '智记AI v__VERSION__'
+          includeDebug: false
           releaseBody: |
             ## 更新内容
             请查看提交记录了解本次更新详情。
