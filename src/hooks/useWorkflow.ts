@@ -2,7 +2,7 @@
  * useWorkflow — React hook for workflow CRUD + trigger dispatch
  */
 import { useState, useCallback, useEffect } from "react";
-import { Workflow, WorkflowLog, WorkflowContext, TriggerType } from "@/lib/workflow/types";
+import { Workflow, WorkflowLog, WorkflowContext } from "@/lib/workflow/types";
 import { workflowStorage } from "@/lib/workflow/storage";
 import { dispatchTrigger, ActionExecutorDeps } from "@/lib/workflow/engine";
 import { startScheduler, stopScheduler } from "@/lib/workflow/scheduler";

@@ -322,11 +322,32 @@ const Workspace = () => {
     }
   }, []);
 
-  const handleNewNote = useCallback(() => {
-    createNote(activeFolderId || undefined);
+  const handleNewNote = useCallback(async () => {
+    await createNote(activeFolderId || undefined);
     if (activeFolderId) setExpandedFolders((prev) => new Set(prev).add(activeFolderId));
     if (isMobile) setMobileSidebarOpen(false);
   }, [createNote, activeFolderId, isMobile]);
+
+  // Trigger on_note_create after a new note is created (activeNoteId changes to a brand-new note)
+  const prevActiveNoteIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activeNoteId || activeNoteId === prevActiveNoteIdRef.current) return;
+    const note = notes.find(n => n.id === activeNoteId);
+    if (!note) return;
+    // Only trigger if this note was just created (content is empty = new note)
+    const isNew = !note.content || note.content === "" || note.content === "<p></p>";
+    if (isNew) {
+      triggerWorkflow("on_note_create", {
+        noteId: note.id,
+        noteTitle: note.title,
+        noteContent: note.content || "",
+        noteFolderId: note.folder_id,
+        noteTags: [],
+        triggerType: "on_note_create",
+      });
+    }
+    prevActiveNoteIdRef.current = activeNoteId;
+  }, [activeNoteId, notes, triggerWorkflow]);
 
   // ─── Global keyboard shortcuts ─────────────────────────────────
   useEffect(() => {
@@ -419,9 +440,9 @@ const Workspace = () => {
 
   // ─── Workflow ──────────────────────────────────────────────────
   const [workflowPanelOpen, setWorkflowPanelOpen] = useState(false);
-  const { config: aiConfig } = { config: null } as any; // will be resolved via useAiConfig in engine
+  const { config: aiConfig } = useAiConfig();
   const workflowDeps = useMemo(() => ({
-    aiConfig: null, // engine fetches its own config
+    aiConfig,
     updateNote: async (id: string, updates: { title?: string; content?: string }) => {
       await updateNote(id, updates);
     },
@@ -448,7 +469,7 @@ const Workspace = () => {
       }
     },
     refreshNotes,
-  }), [updateNote, tags, addTagToNote, createTag, moveNoteToFolder, storageSettings, user, refreshNotes]);
+  }), [aiConfig, updateNote, tags, addTagToNote, createTag, moveNoteToFolder, storageSettings, user, refreshNotes]);
 
   const { workflows, logs, createWorkflow, updateWorkflow, deleteWorkflow, toggleWorkflow, clearLogs, trigger: triggerWorkflow } = useWorkflow(workflowDeps);
 
@@ -480,6 +501,23 @@ const Workspace = () => {
       });
     }
   }, [updateNote, notes, noteTagsMap, tags, triggerWorkflow]);
+
+  // Workflow-aware tag add — fires on_tag_added trigger
+  const handleAddTagToNote = useCallback(async (noteId: string, tagId: string) => {
+    await addTagToNote(noteId, tagId);
+    const note = notes.find(n => n.id === noteId);
+    const tagName = tags.find(t => t.id === tagId)?.name || "";
+    if (note) {
+      triggerWorkflow("on_tag_added", {
+        noteId,
+        noteTitle: note.title,
+        noteContent: note.content || "",
+        noteFolderId: note.folder_id,
+        noteTags: [...(noteTagsMap[noteId] || []).map(tid => tags.find(t => t.id === tid)?.name || ""), tagName],
+        triggerType: "on_tag_added",
+      });
+    }
+  }, [addTagToNote, notes, tags, noteTagsMap, triggerWorkflow]);
 
   const handleImportFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1063,7 +1101,7 @@ const Workspace = () => {
                       tags={tags}
                       noteTags={getTagsForNote(activeNote.id)}
                       onCreateTag={createTag}
-                      onAddTag={addTagToNote}
+                      onAddTag={handleAddTagToNote}
                       onRemoveTag={removeTagFromNote}
                       pageFontSize={pageFontSize}
                       onTogglePin={togglePin}
@@ -1204,7 +1242,7 @@ const Workspace = () => {
                       tags={tags}
                       noteTags={getTagsForNote(activeNote.id)}
                       onCreateTag={createTag}
-                      onAddTag={addTagToNote}
+                      onAddTag={handleAddTagToNote}
                       onRemoveTag={removeTagFromNote}
                       pageFontSize={pageFontSize}
                       onTogglePin={togglePin}
