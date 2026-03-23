@@ -3,7 +3,17 @@ import { useNavigate, Link } from "react-router-dom";
 import {
   Sparkles, FileText, LogOut, Plus, Search, Moon, Sun, Crown,
   FolderPlus, PanelLeftClose, PanelLeftOpen, Menu, X, RefreshCw, ArrowUpDown,
+  Star, Trash2, Tag, FolderInput, GripVertical,
 } from "lucide-react";
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, arrayMove,
+} from "@dnd-kit/sortable";
+import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
+import SortableNoteItem from "@/components/workspace/SortableNoteItem";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -41,7 +51,7 @@ const Workspace = () => {
   const [pwaBannerDismissed, setPwaBannerDismissed] = useState(false);
   const tauriUpdate = useTauriUpdate();
   const [storageSettings, setStorageSettingsState] = useState<StorageSettings>(getStorageSettings);
-  const { notes, trashedNotes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, restoreNote, permanentDeleteNote, emptyTrash, refreshNotes, fetchNoteContent, togglePin, toggleShare } = useNotes(storageSettings);
+  const { notes, trashedNotes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, restoreNote, permanentDeleteNote, emptyTrash, refreshNotes, fetchNoteContent, togglePin, toggleShare, toggleFavorite } = useNotes(storageSettings);
   const [contentLoading, setContentLoading] = useState(false);
   const { tags, noteTagsMap, createTag, addTagToNote, removeTagFromNote, getTagsForNote } = useTags();
   const { folders, createFolder, renameFolder, deleteFolder, moveNoteToFolder, getChildFolders } = useFolders();
@@ -76,6 +86,65 @@ const Workspace = () => {
     created_desc: "最近创建",
     title_asc: "标题 A→Z",
     title_desc: "标题 Z→A",
+  };
+
+  // Batch selection
+  const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(new Set());
+  const [batchMode, setBatchMode] = useState(false);
+
+  // Favorites filter
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+
+  // Sort mode (drag to reorder)
+  const [sortMode, setSortMode] = useState(false);
+  // Custom note order stored in localStorage
+  const NOTE_ORDER_KEY = "zhiji-note-order";
+  const [customNoteOrder, setCustomNoteOrder] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(NOTE_ORDER_KEY) || "[]"); } catch { return []; }
+  });
+  const sortedUnfolderedRef = useRef<{ id: string }[]>([]);
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDndEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const currentIds = sortedUnfolderedRef.current.map(n => n.id);
+    const oldIndex = currentIds.indexOf(active.id as string);
+    const newIndex = currentIds.indexOf(over.id as string);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const newOrder = arrayMove(currentIds, oldIndex, newIndex);
+    localStorage.setItem(NOTE_ORDER_KEY, JSON.stringify(newOrder));
+    setCustomNoteOrder(newOrder);
+  }, []);
+
+  const toggleBatchSelect = (id: string) => {
+    setSelectedNoteIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBatchDelete = async () => {
+    for (const id of selectedNoteIds) await deleteNote(id);
+    setSelectedNoteIds(new Set());
+    setBatchMode(false);
+  };
+
+  const handleBatchFavorite = () => {
+    for (const id of selectedNoteIds) toggleFavorite(id);
+    setSelectedNoteIds(new Set());
+    setBatchMode(false);
+  };
+
+  const handleBatchMove = (folderId: string | null) => {
+    for (const id of selectedNoteIds) moveNoteToFolder(id, folderId);
+    setSelectedNoteIds(new Set());
+    setBatchMode(false);
   };
 
   // ─── Handlers ──────────────────────────────────────────────────
@@ -332,6 +401,7 @@ const Workspace = () => {
 
   const filteredNotes = useMemo(() => {
     let result = notes;
+    if (showFavoritesOnly) result = result.filter((n) => n.is_favorited);
     if (selectedTagId) result = result.filter((n) => (noteTagsMap[n.id] || []).includes(selectedTagId));
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -349,9 +419,27 @@ const Workspace = () => {
       }
     });
     return result;
-  }, [notes, searchQuery, selectedTagId, noteTagsMap, sortOrder]);
+  }, [notes, searchQuery, selectedTagId, noteTagsMap, sortOrder, showFavoritesOnly]);
 
   const unfolderedNotes = useMemo(() => filteredNotes.filter((n) => !n.folder_id), [filteredNotes]);
+
+  // Apply custom sort order to unfoldered notes (only when not searching/filtering)
+  const sortedUnfolderedNotes = useMemo(() => {
+    const base = unfolderedNotes;
+    let result: typeof base;
+    if (customNoteOrder.length === 0) {
+      result = base;
+    } else {
+      const orderMap = new Map(customNoteOrder.map((id, i) => [id, i]));
+      result = [...base].sort((a, b) => {
+        const ia = orderMap.has(a.id) ? orderMap.get(a.id)! : Infinity;
+        const ib = orderMap.has(b.id) ? orderMap.get(b.id)! : Infinity;
+        return ia - ib;
+      });
+    }
+    sortedUnfolderedRef.current = result;
+    return result;
+  }, [unfolderedNotes, customNoteOrder]);
 
   const notesByFolder = useMemo(() => {
     const map: Record<string, typeof filteredNotes> = {};
@@ -441,8 +529,53 @@ const Workspace = () => {
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-xs">新建目录</TooltipContent>
         </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button onClick={() => setShowFavoritesOnly(v => !v)}
+              className={cn("px-2 py-2 rounded-lg transition-colors shrink-0", showFavoritesOnly ? "bg-yellow-400/20 text-yellow-500" : "bg-accent text-accent-foreground hover:bg-accent/80")}>
+              <Star className="w-4 h-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">{showFavoritesOnly ? "显示全部" : "只看收藏"}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button onClick={() => { setBatchMode(v => !v); setSelectedNoteIds(new Set()); }}
+              className={cn("px-2 py-2 rounded-lg transition-colors shrink-0", batchMode ? "bg-primary/20 text-primary" : "bg-accent text-accent-foreground hover:bg-accent/80")}>
+              <Tag className="w-4 h-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">{batchMode ? "退出批量" : "批量操作"}</TooltipContent>
+        </Tooltip>
         <NoteTemplates onCreateFromTemplate={handleCreateFromTemplate} />
       </div>
+
+      {/* Batch operation toolbar */}
+      {batchMode && selectedNoteIds.size > 0 && (
+        <div className="mx-3 mb-2 p-2 rounded-lg bg-primary/10 border border-primary/20 flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs text-primary font-medium flex-1">已选 {selectedNoteIds.size} 篇</span>
+          <button onClick={handleBatchFavorite} className="px-2 py-1 rounded text-xs bg-yellow-400/20 text-yellow-600 hover:bg-yellow-400/30 transition-colors flex items-center gap-1">
+            <Star className="w-3 h-3" /> 收藏
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="px-2 py-1 rounded text-xs bg-accent text-accent-foreground hover:bg-accent/80 transition-colors flex items-center gap-1">
+                <FolderInput className="w-3 h-3" /> 移动
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem onClick={() => handleBatchMove(null)} className="text-xs">未分类</DropdownMenuItem>
+              {folders.map(f => (
+                <DropdownMenuItem key={f.id} onClick={() => handleBatchMove(f.id)} className="text-xs">{f.name}</DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <button onClick={handleBatchDelete} className="px-2 py-1 rounded text-xs bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors flex items-center gap-1">
+            <Trash2 className="w-3 h-3" /> 删除
+          </button>
+        </div>
+      )}
+
       <input type="file" ref={importInputRef} className="hidden" accept={acceptString} onChange={handleImportFile} />
 
       {/* Note list with folders */}
@@ -511,27 +644,48 @@ const Workspace = () => {
               >
                 <p
                   className={cn(
-                    "text-[11px] text-muted-foreground/50 px-3 pb-1 font-medium cursor-pointer hover:text-muted-foreground transition-colors",
+                    "text-[11px] text-muted-foreground/50 px-3 pb-1 font-medium cursor-pointer hover:text-muted-foreground transition-colors flex items-center gap-1",
                     activeFolderId === null && folders.length > 0 && "text-primary"
                   )}
                   onClick={() => setActiveFolderId(null)}
                 >
                   未分类
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setSortMode(v => !v); }}
+                    className={cn("ml-auto p-0.5 rounded transition-colors", sortMode ? "text-primary" : "text-muted-foreground/40 hover:text-muted-foreground")}
+                    title={sortMode ? "退出排序" : "拖拽排序"}
+                  >
+                    <GripVertical className="w-3 h-3" />
+                  </button>
                 </p>
-                {unfolderedNotes.map((note) => (
-                  <SidebarNoteItem
-                    key={note.id}
-                    note={note}
-                    isActive={activeNoteId === note.id}
-                    folders={folders}
-                    onSelect={handleSelectNote}
-                    onDelete={deleteNote}
-                    onMove={handleMoveNote}
-                    onDragStart={handleDragStart}
-                    onTogglePin={togglePin}
-                  />
-                ))}
-                {unfolderedNotes.length === 0 && (
+                <DndContext
+                  sensors={dndSensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDndEnd}
+                  modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+                >
+                  <SortableContext items={sortedUnfolderedNotes.map(n => n.id)} strategy={verticalListSortingStrategy}>
+                    {sortedUnfolderedNotes.map((note) => (
+                      <SortableNoteItem
+                        key={note.id}
+                        note={note}
+                        isActive={activeNoteId === note.id}
+                        folders={folders}
+                        onSelect={handleSelectNote}
+                        onDelete={deleteNote}
+                        onMove={handleMoveNote}
+                        onDragStart={handleDragStart}
+                        onTogglePin={togglePin}
+                        onToggleFavorite={toggleFavorite}
+                        batchMode={batchMode}
+                        isSelected={selectedNoteIds.has(note.id)}
+                        onBatchToggle={toggleBatchSelect}
+                        sortMode={sortMode}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
+                {sortedUnfolderedNotes.length === 0 && (
                   <p className="text-xs text-muted-foreground/50 py-2 pl-4">无未分类笔记</p>
                 )}
               </div>
@@ -550,6 +704,10 @@ const Workspace = () => {
             onMove={handleMoveNote}
             onDragStart={handleDragStart}
             onTogglePin={togglePin}
+            onToggleFavorite={toggleFavorite}
+            batchMode={batchMode}
+            isSelected={selectedNoteIds.has(note.id)}
+            onBatchToggle={toggleBatchSelect}
             searchQuery={searchQuery}
           />
         ))}

@@ -13,6 +13,7 @@ export interface Note {
   updated_at: string;
   deleted_at?: string | null;
   is_pinned?: boolean;
+  is_favorited?: boolean;
   share_token?: string | null;
   _contentLoaded?: boolean; // internal flag for lazy loading
 }
@@ -338,9 +339,31 @@ export const useNotes = (storageSettings?: StorageSettings) => {
 
   const activeNote = notes.find((n) => n.id === activeNoteId) || null;
 
+  // Toggle favorite — stored in localStorage (no DB migration needed)
+  const FAVORITES_KEY = "zhiji-favorites";
+  const getFavoriteIds = (): Set<string> => {
+    try { return new Set(JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]")); } catch { return new Set(); }
+  };
+
+  const toggleFavorite = (id: string) => {
+    const favs = getFavoriteIds();
+    if (favs.has(id)) favs.delete(id); else favs.add(id);
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favs]));
+    setNotes(prev => prev.map(n => n.id === id ? { ...n, is_favorited: favs.has(id) } : n));
+    toast({ title: favs.has(id) ? "已加入收藏" : "已取消收藏" });
+  };
+
+  // Hydrate favorites from localStorage on load
+  useEffect(() => {
+    const favs = getFavoriteIds();
+    if (favs.size > 0) {
+      setNotes(prev => prev.map(n => ({ ...n, is_favorited: favs.has(n.id) })));
+    }
+  }, [notes.length]);
+
   return {
     notes, trashedNotes, loading, activeNote, activeNoteId, setActiveNoteId,
     createNote, updateNote, deleteNote, restoreNote, permanentDeleteNote, emptyTrash,
-    refreshNotes: fetchNotes, fetchNoteContent, togglePin, toggleShare,
+    refreshNotes: fetchNotes, fetchNoteContent, togglePin, toggleShare, toggleFavorite,
   };
 };

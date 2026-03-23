@@ -252,6 +252,8 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
     if (url && editor) editor.chain().focus().setImage({ src: url }).run();
     setUploadingImage(false);
   };
+  const handleImageInsertRef = useRef(handleImageInsert);
+  useEffect(() => { handleImageInsertRef.current = handleImageInsert; });
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -261,21 +263,23 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
 
   useEffect(() => {
     if (!editor) return;
-    const handlePaste = (view: any, event: ClipboardEvent) => {
+    const editorDom = editor.view.dom;
+    const handlePaste = (event: ClipboardEvent) => {
       const items = event.clipboardData?.items;
-      if (!items) return false;
+      if (!items) return;
       for (const item of Array.from(items)) {
         if (item.type.startsWith("image/")) {
           event.preventDefault();
+          event.stopPropagation();
           const file = item.getAsFile();
-          if (file) handleImageInsert(file);
-          return true;
+          if (file) handleImageInsertRef.current(file);
+          return;
         }
       }
-      return false;
     };
-    editor.view.props.handlePaste = handlePaste;
-  }, [editor, user]);
+    editorDom.addEventListener("paste", handlePaste);
+    return () => editorDom.removeEventListener("paste", handlePaste);
+  }, [editor]);
 
   // Core AI action handler
   const handleAiAction = async (action: AiActionType, selectedText?: string) => {
@@ -386,7 +390,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
       .trim();
   };
 
-  type ExportFormat = "markdown" | "html" | "txt" | "csv" | "json" | "xml" | "rtf" | "docx" | "log" | "js" | "ts" | "py" | "java" | "go" | "rs" | "cpp" | "sql" | "sh" | "css" | "yaml" | "php" | "rb" | "swift" | "kt";
+  type ExportFormat = "pdf" | "markdown" | "html" | "txt" | "csv" | "json" | "xml" | "rtf" | "docx" | "log" | "js" | "ts" | "py" | "java" | "go" | "rs" | "cpp" | "sql" | "sh" | "css" | "yaml" | "php" | "rb" | "swift" | "kt";
 
   const exportAs = async (format: ExportFormat) => {
     if (!editor) return;
@@ -398,6 +402,42 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
     let blob: Blob;
 
     switch (format) {
+      case "pdf": {
+        try {
+          const { default: jsPDF } = await import("jspdf");
+          const { default: html2canvas } = await import("html2canvas");
+          const editorEl = document.querySelector(".ProseMirror") as HTMLElement;
+          if (!editorEl) { toast({ title: "导出失败", description: "找不到编辑器内容", variant: "destructive" }); return; }
+          const canvas = await html2canvas(editorEl, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+          const imgData = canvas.toDataURL("image/png");
+          const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+          const pageW = pdf.internal.pageSize.getWidth();
+          const pageH = pdf.internal.pageSize.getHeight();
+          const margin = 15;
+          const contentW = pageW - margin * 2;
+          const imgH = (canvas.height * contentW) / canvas.width;
+          let y = margin;
+          let remaining = imgH;
+          let srcY = 0;
+          while (remaining > 0) {
+            const sliceH = Math.min(remaining, pageH - margin * 2);
+            const sliceCanvas = document.createElement("canvas");
+            sliceCanvas.width = canvas.width;
+            sliceCanvas.height = (sliceH / contentW) * canvas.width;
+            const ctx = sliceCanvas.getContext("2d")!;
+            ctx.drawImage(canvas, 0, srcY * (canvas.width / contentW), canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
+            pdf.addImage(sliceCanvas.toDataURL("image/png"), "PNG", margin, y, contentW, sliceH);
+            remaining -= sliceH;
+            srcY += sliceH;
+            if (remaining > 0) { pdf.addPage(); y = margin; }
+          }
+          pdf.save(`${title || "笔记"}.pdf`);
+          toast({ title: "导出成功", description: "已导出为 PDF" });
+        } catch (e: any) {
+          toast({ title: "PDF 导出失败", description: e.message, variant: "destructive" });
+        }
+        return;
+      }
       case "html":
         content = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title></head><body>${html}</body></html>`;
         ext = "html"; mime = "text/html";
@@ -578,6 +618,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => exportAs("pdf")}>PDF (.pdf)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => exportAs("markdown")}>Markdown (.md)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => exportAs("html")}>HTML (.html)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => exportAs("txt")}>纯文本 (.txt)</DropdownMenuItem>
