@@ -2,8 +2,9 @@ import React, { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import { useNavigate, Link } from "react-router-dom";
 import {
   Sparkles, FileText, LogOut, Plus, Search, Moon, Sun, Crown,
-  FolderPlus, PanelLeftClose, PanelLeftOpen, Menu, X, RefreshCw,
+  FolderPlus, PanelLeftClose, PanelLeftOpen, Menu, X, RefreshCw, ArrowUpDown,
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
@@ -27,6 +28,8 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePwaUpdate } from "@/hooks/usePwaUpdate";
+import { useTauriUpdate } from "@/hooks/useTauriUpdate";
+import UpdateBanner from "@/components/workspace/UpdateBanner";
 
 const Workspace = () => {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -35,8 +38,11 @@ const Workspace = () => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { hasUpdate, updating, update: pwaUpdate } = usePwaUpdate();
+  const [pwaBannerDismissed, setPwaBannerDismissed] = useState(false);
+  const tauriUpdate = useTauriUpdate();
   const [storageSettings, setStorageSettingsState] = useState<StorageSettings>(getStorageSettings);
-  const { notes, trashedNotes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, restoreNote, permanentDeleteNote, emptyTrash, refreshNotes, togglePin, toggleShare } = useNotes(storageSettings);
+  const { notes, trashedNotes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, restoreNote, permanentDeleteNote, emptyTrash, refreshNotes, fetchNoteContent, togglePin, toggleShare } = useNotes(storageSettings);
+  const [contentLoading, setContentLoading] = useState(false);
   const { tags, noteTagsMap, createTag, addTagToNote, removeTagFromNote, getTagsForNote } = useTags();
   const { folders, createFolder, renameFolder, deleteFolder, moveNoteToFolder, getChildFolders } = useFolders();
   const { importFile, acceptString } = useDocumentImport();
@@ -60,6 +66,17 @@ const Workspace = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   // Mobile sidebar open state (sheet-based)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  // Sort order
+  type SortOrder = "updated_desc" | "created_desc" | "title_asc" | "title_desc";
+  const [sortOrder, setSortOrder] = useState<SortOrder>(() => {
+    return (localStorage.getItem("noteSortOrder") as SortOrder) || "updated_desc";
+  });
+  const sortLabels: Record<SortOrder, string> = {
+    updated_desc: "最近更新",
+    created_desc: "最近创建",
+    title_asc: "标题 A→Z",
+    title_desc: "标题 Z→A",
+  };
 
   // ─── Handlers ──────────────────────────────────────────────────
 
@@ -217,6 +234,38 @@ const Workspace = () => {
     if (isMobile) setMobileSidebarOpen(false);
   }, [createNote, activeFolderId, isMobile]);
 
+  // ─── Global keyboard shortcuts ─────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().includes("MAC");
+      const mod = isMac ? e.metaKey : e.ctrlKey;
+      if (!mod) return;
+      switch (e.key) {
+        case "n":
+          e.preventDefault();
+          handleNewNote();
+          break;
+        case "\\":
+          e.preventDefault();
+          setSidebarCollapsed((v) => !v);
+          break;
+        case "f":
+          if (!e.shiftKey) {
+            e.preventDefault();
+            if (isMobile) {
+              setMobileSidebarOpen(true);
+            } else {
+              setSidebarCollapsed(false);
+              setTimeout(() => document.querySelector<HTMLInputElement>('input[placeholder="搜索笔记..."]')?.focus(), 300);
+            }
+          }
+          break;
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [handleNewNote, isMobile]);
+
   const handleCreateFromTemplate = useCallback(async (title: string, content: string) => {
     if (!user) return;
     if (storageSettings.mode === "local") {
@@ -241,11 +290,15 @@ const Workspace = () => {
     if (isMobile) setMobileSidebarOpen(false);
   }, [user, storageSettings, activeFolderId, refreshNotes, setActiveNoteId, toast, isMobile]);
 
-  const handleSelectNote = useCallback((id: string, folderId: string | null) => {
+  const handleSelectNote = useCallback(async (id: string, folderId: string | null) => {
     setActiveNoteId(id);
     setActiveFolderId(folderId);
     if (isMobile) setMobileSidebarOpen(false);
-  }, [setActiveNoteId, isMobile]);
+    // Lazy load content if not yet loaded
+    setContentLoading(true);
+    await fetchNoteContent(id);
+    setContentLoading(false);
+  }, [setActiveNoteId, fetchNoteContent, isMobile]);
 
   const handleImportFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -284,8 +337,19 @@ const Workspace = () => {
       const q = searchQuery.toLowerCase();
       result = result.filter((n) => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q));
     }
+    // Sort: pinned always first, then by selected order
+    result = [...result].sort((a, b) => {
+      if (a.is_pinned && !b.is_pinned) return -1;
+      if (!a.is_pinned && b.is_pinned) return 1;
+      switch (sortOrder) {
+        case "created_desc": return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case "title_asc": return (a.title || "").localeCompare(b.title || "", "zh");
+        case "title_desc": return (b.title || "").localeCompare(a.title || "", "zh");
+        default: return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+      }
+    });
     return result;
-  }, [notes, searchQuery, selectedTagId, noteTagsMap]);
+  }, [notes, searchQuery, selectedTagId, noteTagsMap, sortOrder]);
 
   const unfolderedNotes = useMemo(() => filteredNotes.filter((n) => !n.folder_id), [filteredNotes]);
 
@@ -323,15 +387,40 @@ const Workspace = () => {
     <>
       {/* Search */}
       <div className="p-3 space-y-2">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="搜索笔记..."
-            className="w-full pl-8 pr-3 py-2 text-sm bg-muted/60 rounded-lg border-none outline-none text-foreground placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-ring/30 transition-shadow"
-          />
+        <div className="flex items-center gap-1.5">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="搜索笔记..."
+              className="w-full pl-8 pr-3 py-2 text-sm bg-muted/60 rounded-lg border-none outline-none text-foreground placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-ring/30 transition-shadow"
+            />
+          </div>
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <button className="p-2 rounded-lg bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0">
+                    <ArrowUpDown className="w-3.5 h-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">排序方式：{sortLabels[sortOrder]}</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="end" className="w-36">
+              {(Object.keys(sortLabels) as SortOrder[]).map((key) => (
+                <DropdownMenuItem
+                  key={key}
+                  onClick={() => { setSortOrder(key); localStorage.setItem("noteSortOrder", key); }}
+                  className={cn("text-xs", sortOrder === key && "text-primary font-medium")}
+                >
+                  {sortLabels[key]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -461,6 +550,7 @@ const Workspace = () => {
             onMove={handleMoveNote}
             onDragStart={handleDragStart}
             onTogglePin={togglePin}
+            searchQuery={searchQuery}
           />
         ))}
       </div>
@@ -561,6 +651,24 @@ const Workspace = () => {
     <div className="h-screen flex bg-background" style={{ '--page-font-scale': pageFontSize / 15 } as React.CSSProperties}>
       <TooltipProvider delayDuration={300}>
 
+        {/* ── PWA update banner ── */}
+        {hasUpdate && !pwaBannerDismissed && (
+          <UpdateBanner
+            onUpdate={() => { pwaUpdate(); }}
+            onDismiss={() => setPwaBannerDismissed(true)}
+            updating={updating}
+          />
+        )}
+
+        {/* ── Tauri desktop update banner ── */}
+        {tauriUpdate.hasUpdate && (
+          <UpdateBanner
+            onUpdate={tauriUpdate.installUpdate}
+            onDismiss={tauriUpdate.dismiss}
+            updating={tauriUpdate.updating}
+          />
+        )}
+
         {/* ── Mobile: hamburger + sheet sidebar ── */}
         {isMobile ? (
           <>
@@ -617,18 +725,29 @@ const Workspace = () => {
                       <Menu className="w-5 h-5" />
                     </button>
                   </div>
-                  <NoteEditor
-                    note={activeNote}
-                    onUpdate={updateNote}
-                    tags={tags}
-                    noteTags={getTagsForNote(activeNote.id)}
-                    onCreateTag={createTag}
-                    onAddTag={addTagToNote}
-                    onRemoveTag={removeTagFromNote}
-                    pageFontSize={pageFontSize}
-                    onTogglePin={togglePin}
-                    onToggleShare={toggleShare}
-                  />
+                  {contentLoading ? (
+                    <div className="flex-1 flex items-center justify-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        <p className="text-xs text-muted-foreground">加载中...</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <NoteEditor
+                      note={activeNote}
+                      onUpdate={updateNote}
+                      tags={tags}
+                      noteTags={getTagsForNote(activeNote.id)}
+                      onCreateTag={createTag}
+                      onAddTag={addTagToNote}
+                      onRemoveTag={removeTagFromNote}
+                      pageFontSize={pageFontSize}
+                      onTogglePin={togglePin}
+                      onToggleShare={toggleShare}
+                      allNotes={notes}
+                      onSelectNote={handleSelectNote}
+                    />
+                  )}
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col pt-12">
@@ -715,7 +834,7 @@ const Workspace = () => {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
-                        onClick={() => setSearchQuery("")}
+                        onClick={() => { setSidebarCollapsed(false); setTimeout(() => document.querySelector<HTMLInputElement>('input[placeholder="搜索笔记..."]')?.focus(), 300); }}
                         className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                       >
                         <Search className="w-4 h-4" />
@@ -747,24 +866,37 @@ const Workspace = () => {
             <main className="flex-1 flex bg-section-alt min-w-0">
               <div className="flex-1 flex min-w-0">
                 {activeNote ? (
-                  <NoteEditor
-                    note={activeNote}
-                    onUpdate={updateNote}
-                    tags={tags}
-                    noteTags={getTagsForNote(activeNote.id)}
-                    onCreateTag={createTag}
-                    onAddTag={addTagToNote}
-                    onRemoveTag={removeTagFromNote}
-                    pageFontSize={pageFontSize}
-                    onTogglePin={togglePin}
-                    onToggleShare={toggleShare}
-                    onImportFile={() => importInputRef.current?.click()}
-                  />
+                  contentLoading ? (
+                    <div className="flex-1 flex items-center justify-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        <p className="text-xs text-muted-foreground">加载中...</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <NoteEditor
+                      note={activeNote}
+                      onUpdate={updateNote}
+                      tags={tags}
+                      noteTags={getTagsForNote(activeNote.id)}
+                      onCreateTag={createTag}
+                      onAddTag={addTagToNote}
+                      onRemoveTag={removeTagFromNote}
+                      pageFontSize={pageFontSize}
+                      onTogglePin={togglePin}
+                      onToggleShare={toggleShare}
+                      onImportFile={() => importInputRef.current?.click()}
+                      allNotes={notes}
+                      onSelectNote={handleSelectNote}
+                    />
+                  )
                 ) : (
                   <WorkspaceEmptyState onCreateNote={handleNewNote} />
                 )}
               </div>
               <AiChatPanel
+                storageSettings={storageSettings}
+                allNotes={notes}
                 onSaveNote={async (title, content) => {
                   if (!user) return;
                   if (storageSettings.mode === "local") {

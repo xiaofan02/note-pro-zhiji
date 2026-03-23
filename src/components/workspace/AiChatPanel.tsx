@@ -1,23 +1,60 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Send, Loader2, MessageSquare, X, Save, Bot, User, Plus, History, ArrowLeft, Trash2, Search } from "lucide-react";
+import { Send, Loader2, MessageSquare, X, Save, Bot, User, Plus, History, ArrowLeft, Trash2, Search, BookOpen, FileText, Copy, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
+import { marked } from "marked";
 import { cn } from "@/lib/utils";
 import { useChatConversations } from "@/hooks/useChatConversations";
 import { useUserRole } from "@/hooks/useUserRole";
 import UpgradePrompt from "./UpgradePrompt";
 import { useAiConfig, buildAiRequest } from "@/hooks/useAiConfig";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 interface AiChatPanelProps {
   onSaveNote: (title: string, content: string, folderId?: string) => Promise<void>;
+  storageSettings?: { mode: "cloud" | "local"; localPath: string };
+  allNotes?: { id: string; title: string; content: string }[];
 }
 
 type ViewMode = "chat" | "history";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
 
-const AiChatPanel = ({ onSaveNote }: AiChatPanelProps) => {
+// Code block with syntax highlighting + copy button
+const CodeBlock = ({ language, children }: { language?: string; children: string }) => {
+  const [copied, setCopied] = useState(false);
+  const isDark = document.documentElement.classList.contains("dark");
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(children).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div className="relative group my-2 rounded-lg overflow-hidden border border-border text-[12px]">
+      <div className="flex items-center justify-between px-3 py-1 bg-muted/60 border-b border-border">
+        <span className="text-[11px] text-muted-foreground font-mono">{language || "code"}</span>
+        <button onClick={handleCopy} className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
+          {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+        </button>
+      </div>
+      <SyntaxHighlighter
+        language={language || "text"}
+        style={isDark ? oneDark : oneLight}
+        customStyle={{ margin: 0, borderRadius: 0, fontSize: "12px", background: "transparent" }}
+        PreTag="div"
+      >
+        {children}
+      </SyntaxHighlighter>
+    </div>
+  );
+};
+
+const AiChatPanel = ({ onSaveNote, storageSettings, allNotes = [] }: AiChatPanelProps) => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -25,6 +62,10 @@ const AiChatPanel = ({ onSaveNote }: AiChatPanelProps) => {
   const [localMessages, setLocalMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showUpgrade, setShowUpgrade] = useState(false);
+  // Knowledge base: selected notes as context
+  const [kbNoteIds, setKbNoteIds] = useState<Set<string>>(new Set());
+  const [kbPickerOpen, setKbPickerOpen] = useState(false);
+  const [kbSearch, setKbSearch] = useState("");
   const { isPro, loading: roleLoading } = useUserRole();
   const { config: aiConfig, usageAllowed, recordUsage } = useAiConfig();
 
@@ -39,9 +80,9 @@ const AiChatPanel = ({ onSaveNote }: AiChatPanelProps) => {
   const { toast } = useToast();
 
   const {
-    conversations, activeConversationId, messages: dbMessages, setMessages: setDbMessages,
+    conversations, activeConversationId, messages: dbMessages,
     loadMessages, createConversation, updateConversationTitle, deleteConversation, saveMessage, updateLastAssistantMessage, startNewChat,
-  } = useChatConversations();
+  } = useChatConversations(storageSettings);
 
   useEffect(() => {
     if (activeConversationId) {
@@ -113,7 +154,15 @@ const AiChatPanel = ({ onSaveNote }: AiChatPanelProps) => {
 
     let assistantContent = "";
 
-    const systemPrompt = `你是一个智能笔记助手，帮助用户整理想法、回答问题、分析内容。请根据对话上下文理解用户意图，给出简洁、有帮助的回复。用中文回复。`;
+    const systemPrompt = `你是一个智能笔记助手，帮助用户整理想法、回答问题、分析内容。请根据对话上下文理解用户意图，给出简洁、有帮助的回复。用中文回复。${
+      kbNoteIds.size > 0
+        ? "\n\n以下是用户提供的参考笔记内容，请优先基于这些内容回答：\n\n" +
+          allNotes
+            .filter((n) => kbNoteIds.has(n.id))
+            .map((n) => `【${n.title}】\n${n.content.replace(/<[^>]*>/g, "").slice(0, 2000)}`)
+            .join("\n\n---\n\n")
+        : ""
+    }`;
 
     try {
       const directReq = aiConfig ? buildAiRequest(
@@ -191,11 +240,11 @@ const AiChatPanel = ({ onSaveNote }: AiChatPanelProps) => {
   };
 
   const handleManualSave = async (content: string) => {
-    // Use first line as title, full content as note body
-    const plainText = content.replace(/<[^>]*>/g, "").trim();
-    const title = plainText.slice(0, 30) || "AI 对话笔记";
-    const noteContent = `<p>${content.replace(/\n/g, "</p><p>")}</p>`;
-    await handleSaveExtractedNote(title, noteContent);
+    // Convert markdown to HTML for Tiptap editor
+    const html = await Promise.resolve(marked.parse(content));
+    const plainText = content.replace(/[#*`_~\[\]]/g, "").trim();
+    const title = plainText.split("\n")[0].slice(0, 40) || "AI 对话笔记";
+    await handleSaveExtractedNote(title, html);
   };
 
   const handleNewChat = () => { startNewChat(); setLocalMessages([]); setViewMode("chat"); };
@@ -231,11 +280,60 @@ const AiChatPanel = ({ onSaveNote }: AiChatPanelProps) => {
             <>
               <button onClick={handleNewChat} className="p-1.5 rounded hover:bg-muted transition-colors" title="新对话"><Plus className="w-3.5 h-3.5 text-muted-foreground" /></button>
               <button onClick={() => setViewMode("history")} className="p-1.5 rounded hover:bg-muted transition-colors" title="历史对话"><History className="w-3.5 h-3.5 text-muted-foreground" /></button>
+              <button onClick={() => setKbPickerOpen((v) => !v)} className={cn("p-1.5 rounded hover:bg-muted transition-colors relative", kbNoteIds.size > 0 && "text-primary")} title="知识库">
+                <BookOpen className="w-3.5 h-3.5" />
+                {kbNoteIds.size > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-primary text-primary-foreground rounded-full text-[9px] flex items-center justify-center font-bold">{kbNoteIds.size}</span>
+                )}
+              </button>
             </>
           )}
           <button onClick={() => setIsOpen(false)} className="p-1.5 rounded hover:bg-muted transition-colors" title="收起"><X className="w-3.5 h-3.5 text-muted-foreground" /></button>
         </div>
       </div>
+
+      {/* Knowledge base picker */}
+      {kbPickerOpen && viewMode === "chat" && (
+        <div className="border-b border-border bg-muted/20 shrink-0">
+          <div className="px-3 pt-2 pb-1">
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-xs font-medium text-foreground">知识库笔记 ({kbNoteIds.size} 已选)</p>
+              {kbNoteIds.size > 0 && (
+                <button onClick={() => setKbNoteIds(new Set())} className="text-[11px] text-muted-foreground hover:text-destructive transition-colors">清空</button>
+              )}
+            </div>
+            <div className="relative mb-1.5">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+              <input value={kbSearch} onChange={(e) => setKbSearch(e.target.value)} placeholder="搜索笔记..."
+                className="w-full rounded border border-input bg-background pl-6 pr-2 py-1 text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+            </div>
+            <div className="max-h-36 overflow-y-auto space-y-0.5">
+              {allNotes.filter(n => n.title.toLowerCase().includes(kbSearch.toLowerCase())).slice(0, 20).map((n) => (
+                <label key={n.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted cursor-pointer">
+                  <input type="checkbox" checked={kbNoteIds.has(n.id)}
+                    onChange={(e) => {
+                      setKbNoteIds((prev) => {
+                        const next = new Set(prev);
+                        if (e.target.checked) next.add(n.id); else next.delete(n.id);
+                        return next;
+                      });
+                    }}
+                    className="w-3 h-3 accent-primary"
+                  />
+                  <FileText className="w-3 h-3 text-muted-foreground shrink-0" />
+                  <span className="text-xs truncate">{n.title || "无标题笔记"}</span>
+                </label>
+              ))}
+              {allNotes.length === 0 && <p className="text-xs text-muted-foreground px-2 py-1">暂无笔记</p>}
+            </div>
+          </div>
+          {kbNoteIds.size > 0 && (
+            <div className="px-3 pb-2">
+              <p className="text-[11px] text-primary">AI 将基于选中的 {kbNoteIds.size} 篇笔记内容回答</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {viewMode === "history" ? (
         <div className="flex-1 overflow-y-auto flex flex-col">
@@ -293,7 +391,20 @@ const AiChatPanel = ({ onSaveNote }: AiChatPanelProps) => {
                 <div className={cn("max-w-[82%] rounded-xl px-3 py-2 text-sm leading-relaxed", msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground")}>
                   {msg.role === "assistant" ? (
                     <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1">
-                      <ReactMarkdown rehypePlugins={[rehypeRaw]}>{msg.content}</ReactMarkdown>
+                      <ReactMarkdown
+                        rehypePlugins={[rehypeRaw]}
+                        components={{
+                          code({ node, className, children, ...props }: any) {
+                            const match = /language-(\w+)/.exec(className || "");
+                            const isBlock = !props.inline;
+                            const codeStr = String(children).replace(/\n$/, "");
+                            if (isBlock) {
+                              return <CodeBlock language={match?.[1]}>{codeStr}</CodeBlock>;
+                            }
+                            return <code className="bg-muted px-1 py-0.5 rounded text-[12px] font-mono" {...props}>{children}</code>;
+                          },
+                        }}
+                      >{msg.content}</ReactMarkdown>
                     </div>
                   ) : (<p className="whitespace-pre-wrap text-[13px]">{msg.content}</p>)}
                   {msg.role === "assistant" && msg.content && (

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Note } from "@/hooks/useNotes";
 import { Tag } from "@/hooks/useTags";
-import { Save, Sparkles, FileText, Loader2, Mic, Download, Upload, Share2, Link2, Pin, PinOff, Check, Copy } from "lucide-react";
+import { Save, Sparkles, FileText, Loader2, Mic, Download, Upload, Share2, Link2, Pin, PinOff, Check, Copy, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
@@ -23,10 +23,17 @@ import TaskItem from "@tiptap/extension-task-item";
 import Placeholder from "@tiptap/extension-placeholder";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
+import Table from "@tiptap/extension-table";
+import TableRow from "@tiptap/extension-table-row";
+import TableCell from "@tiptap/extension-table-cell";
+import TableHeader from "@tiptap/extension-table-header";
 import EditorToolbar from "./EditorToolbar";
 import CodeBlockComponent from "./CodeBlockComponent";
 import { getAiProviderSettings, buildDirectChatRequest } from "@/lib/aiProviderSettings";
 import { useAiConfig, buildAiRequest } from "@/hooks/useAiConfig";
+import { NoteLinkExtension } from "@/lib/noteLinkExtension";
+import { noteVersions } from "@/lib/noteVersions";
+import NoteVersionHistory from "./NoteVersionHistory";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
   DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuSeparator,
@@ -71,9 +78,11 @@ interface NoteEditorProps {
   onTogglePin?: (id: string) => void;
   onToggleShare?: (id: string) => Promise<string | null>;
   onImportFile?: () => void;
+  allNotes?: Note[];
+  onSelectNote?: (id: string, folderId: string | null) => void;
 }
 
-const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onRemoveTag, pageFontSize, onTogglePin, onToggleShare, onImportFile }: NoteEditorProps) => {
+const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onRemoveTag, pageFontSize, onTogglePin, onToggleShare, onImportFile, allNotes = [], onSelectNote }: NoteEditorProps) => {
   const { user } = useAuth();
   const { isPro, loading: roleLoading } = useUserRole();
   const { config: aiConfig, usageAllowed, recordUsage } = useAiConfig();
@@ -83,16 +92,28 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   const [aiResult, setAiResult] = useState<AiResult | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [isReadMode, setIsReadMode] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchMatchIndex, setSearchMatchIndex] = useState(0);
+  const [searchMatches, setSearchMatches] = useState<number[]>([]);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const skipNextUpdate = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // ─── Note link picker ──────────────────────────────────────────
+  const [linkPickerOpen, setLinkPickerOpen] = useState(false);
+  const [linkPickerQuery, setLinkPickerQuery] = useState("");
+  const [linkInsertPos, setLinkInsertPos] = useState(0);
 
   const debouncedSave = useCallback(
     (newTitle: string, newContent: string) => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(async () => {
         setSaving(true);
+        noteVersions.save(note.id, newTitle, newContent);
         await onUpdate(note.id, { title: newTitle, content: newContent });
         setSaving(false);
       }, 800);
@@ -112,6 +133,16 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
       TextStyle, Color, FontSize,
       TaskList, TaskItem.configure({ nested: true }),
       Placeholder.configure({ placeholder: "开始写点什么吧..." }),
+      Table.configure({ resizable: true }),
+      TableRow, TableHeader, TableCell,
+      NoteLinkExtension.configure({
+        onTrigger: (query, pos) => {
+          setLinkPickerQuery(query);
+          setLinkInsertPos(pos);
+          setLinkPickerOpen(true);
+        },
+        onClose: () => setLinkPickerOpen(false),
+      }),
     ],
     content: note.content || "",
   });
@@ -142,6 +173,58 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   const { isListening, isSupported: voiceSupported, start: startListening, stop: stopListening } = useSpeechRecognition({
     onResult: (text) => { if (editor) editor.chain().focus().insertContent(text).run(); },
   });
+
+  // ─── In-note search ────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().includes("MAC");
+      const mod = isMac ? e.metaKey : e.ctrlKey;
+      if (mod && e.key === "f" && !e.shiftKey) {
+        e.preventDefault();
+        setSearchOpen((v) => {
+          if (!v) setTimeout(() => searchInputRef.current?.focus(), 50);
+          return !v;
+        });
+      }
+      if (e.key === "Escape" && searchOpen) {
+        setSearchOpen(false);
+        setSearchQuery("");
+        setSearchMatches([]);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (!editor || !searchQuery.trim()) {
+      setSearchMatches([]);
+      setSearchMatchIndex(0);
+      return;
+    }
+    const text = editor.getText();
+    const q = searchQuery.toLowerCase();
+    const matches: number[] = [];
+    let idx = 0;
+    while ((idx = text.toLowerCase().indexOf(q, idx)) !== -1) {
+      matches.push(idx);
+      idx += q.length;
+    }
+    setSearchMatches(matches);
+    setSearchMatchIndex(0);
+    if (matches.length > 0) {
+      editor.commands.setTextSelection({ from: matches[0] + 1, to: matches[0] + q.length + 1 });
+    }
+  }, [searchQuery, editor]);
+
+  const jumpToMatch = (dir: 1 | -1) => {
+    if (!editor || searchMatches.length === 0) return;
+    const next = (searchMatchIndex + dir + searchMatches.length) % searchMatches.length;
+    setSearchMatchIndex(next);
+    const pos = searchMatches[next];
+    editor.commands.setTextSelection({ from: pos + 1, to: pos + searchQuery.length + 1 });
+    editor.commands.scrollIntoView();
+  };
 
   const handleVoiceToggle = () => {
     if (!roleLoading && !isPro) { setShowUpgrade(true); return; }
@@ -432,6 +515,25 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
     toast({ title: "已复制分享链接" });
   };
 
+  // ─── Note link insertion ───────────────────────────────────────
+  const linkPickerNotes = allNotes.filter(
+    (n) => n.id !== note.id && n.title.toLowerCase().includes(linkPickerQuery.toLowerCase())
+  ).slice(0, 8);
+
+  const insertNoteLink = (targetNote: Note) => {
+    if (!editor) return;
+    // Delete the [[ + query text, then insert a link
+    const from = linkInsertPos;
+    const to = editor.state.selection.from;
+    const linkHtml = `<a href="#note-${targetNote.id}" data-note-id="${targetNote.id}" class="note-internal-link">[[${targetNote.title}]]</a>`;
+    editor.chain().focus()
+      .deleteRange({ from, to })
+      .insertContent(linkHtml)
+      .run();
+    setLinkPickerOpen(false);
+    setLinkPickerQuery("");
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full">
       <input type="file" ref={fileInputRef} className="hidden" accept="image/png,image/jpeg,image/gif,image/webp" onChange={handleFileSelect} />
@@ -533,12 +635,59 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
           <span className="text-xs text-muted-foreground flex items-center gap-1">
             {saving ? <>保存中...</> : <><Save className="w-3 h-3" /> 已保存</>}
           </span>
+          <NoteVersionHistory
+            noteId={note.id}
+            onRestore={(title, content) => {
+              setTitle(title);
+              editor?.commands.setContent(content);
+              debouncedSave(title, content);
+            }}
+          />
         </div>
       </div>
 
       {uploadingImage && (
         <div className="mx-6 mt-2 px-3 py-2 bg-accent rounded-lg text-xs text-muted-foreground flex items-center gap-2">
           <Loader2 className="w-3 h-3 animate-spin" /> 正在上传图片...
+        </div>
+      )}
+
+      {/* Note link picker */}
+      {linkPickerOpen && linkPickerNotes.length > 0 && (
+        <div className="mx-6 mt-1 bg-popover border border-border rounded-lg shadow-lg z-50 overflow-hidden">
+          <p className="text-[11px] text-muted-foreground px-3 pt-2 pb-1">选择要链接的笔记</p>
+          {linkPickerNotes.map((n) => (
+            <button key={n.id} onClick={() => insertNoteLink(n)}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2">
+              <span className="text-muted-foreground">[[</span>
+              <span className="truncate">{n.title || "无标题笔记"}</span>
+              <span className="text-muted-foreground">]]</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* In-note search bar */}
+      {searchOpen && (        <div className="mx-6 mt-2 flex items-center gap-2 px-3 py-2 bg-muted/60 rounded-lg border border-border">
+          <input
+            ref={searchInputRef}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); jumpToMatch(e.shiftKey ? -1 : 1); }
+              if (e.key === "Escape") { setSearchOpen(false); setSearchQuery(""); setSearchMatches([]); }
+            }}
+            placeholder="在笔记中搜索..."
+            className="flex-1 bg-transparent text-sm outline-none text-foreground placeholder:text-muted-foreground/50"
+          />
+          <span className="text-xs text-muted-foreground shrink-0">
+            {searchMatches.length > 0 ? `${searchMatchIndex + 1}/${searchMatches.length}` : searchQuery ? "无结果" : ""}
+          </span>
+          <button onClick={() => jumpToMatch(-1)} disabled={searchMatches.length === 0} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors text-xs">↑</button>
+          <button onClick={() => jumpToMatch(1)} disabled={searchMatches.length === 0} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors text-xs">↓</button>
+          <button onClick={() => { setSearchOpen(false); setSearchQuery(""); setSearchMatches([]); }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
@@ -563,21 +712,48 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
         />
       )}
 
-      <EditorToolbar editor={editor} onInsertImage={() => fileInputRef.current?.click()} />
+      <EditorToolbar editor={isReadMode ? null : editor} onInsertImage={() => fileInputRef.current?.click()} />
 
       <div className="flex-1 overflow-y-auto p-6 space-y-4 relative" style={{ fontSize: `${pageFontSize}px` }}>
         <input type="text" value={title} onChange={(e) => handleTitleChange(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); editor?.commands.focus("start"); } }}
           placeholder="笔记标题"
           className="w-full text-2xl font-bold bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/40"
+          readOnly={isReadMode}
         />
-        <EditorContent editor={editor} className="tiptap-editor" />
-        <AiSelectionToolbar
-          editor={editor}
-          onAiAction={handleSelectionAiAction}
-          isLoading={!!aiLoading}
+        <EditorContent editor={editor} className={isReadMode ? "tiptap-editor pointer-events-none select-text" : "tiptap-editor"}
+          onClick={(e) => {
+            const target = (e.target as HTMLElement).closest('[data-note-id]') as HTMLElement | null;
+            if (target && onSelectNote) {
+              const noteId = target.getAttribute('data-note-id');
+              const linked = allNotes.find(n => n.id === noteId);
+              if (linked) onSelectNote(linked.id, linked.folder_id);
+            }
+          }}
         />
+        {!isReadMode && (
+          <AiSelectionToolbar
+            editor={editor}
+            onAiAction={handleSelectionAiAction}
+            isLoading={!!aiLoading}
+          />
+        )}
       </div>
+
+      {/* Word count bar */}
+      {editor && (
+        <div className="border-t border-border px-6 py-1.5 flex items-center justify-between bg-background shrink-0">
+          <span className="text-[11px] text-muted-foreground/60">
+            {editor.storage.characterCount?.characters?.() ?? editor.getText().length} 字符 · {editor.getText().trim().split(/\s+/).filter(Boolean).length} 词
+          </span>
+          <button
+            onClick={() => setIsReadMode((v) => !v)}
+            className="text-[11px] text-muted-foreground/60 hover:text-foreground transition-colors"
+          >
+            {isReadMode ? "退出阅读模式" : "阅读模式"}
+          </button>
+        </div>
+      )}
       <UpgradePrompt open={showUpgrade} onOpenChange={setShowUpgrade} feature="AI 功能" />
     </div>
   );

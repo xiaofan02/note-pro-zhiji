@@ -6,6 +6,20 @@
 
 import { Note } from "@/hooks/useNotes";
 
+// Static Tauri plugin imports — tree-shaken away in web builds
+let tauriFs: typeof import("@tauri-apps/plugin-fs") | null = null;
+let tauriDialog: typeof import("@tauri-apps/plugin-dialog") | null = null;
+
+async function loadTauriPlugins() {
+  if (!isTauri()) return;
+  if (!tauriFs) {
+    try { tauriFs = await import("@tauri-apps/plugin-fs"); } catch {}
+  }
+  if (!tauriDialog) {
+    try { tauriDialog = await import("@tauri-apps/plugin-dialog"); } catch {}
+  }
+}
+
 const DB_NAME = "zhiji-notes-local";
 const DB_VERSION = 1;
 const STORE_NAME = "notes";
@@ -79,39 +93,27 @@ function idbTransaction(
 
 // ─── Tauri Filesystem Helpers ───────────────────────────────────
 /* eslint-disable @typescript-eslint/no-explicit-any */
-async function getTauriFs(): Promise<any> {
-  try {
-    return await (Function('return import("@tauri-apps/plugin-fs")')() as Promise<any>);
-  } catch { return null; }
-}
-
-async function getTauriDialog(): Promise<any> {
-  try {
-    return await (Function('return import("@tauri-apps/plugin-dialog")')() as Promise<any>);
-  } catch { return null; }
-}
-
 async function tauriWriteNote(localPath: string, note: Note & { user_id?: string }) {
   if (!isTauri()) return;
-  const fs = await getTauriFs();
-  if (!fs) return;
+  await loadTauriPlugins();
+  if (!tauriFs) return;
   try {
-    await fs.mkdir(localPath, { recursive: true }).catch(() => {});
-    await fs.writeTextFile(`${localPath}/${note.id}.json`, JSON.stringify(note, null, 2));
+    await tauriFs.mkdir(localPath, { recursive: true }).catch(() => {});
+    await tauriFs.writeTextFile(`${localPath}/${note.id}.json`, JSON.stringify(note, null, 2));
   } catch (e) { console.error("Tauri write failed:", e); }
 }
 
 async function tauriReadAllNotes(localPath: string): Promise<Note[]> {
   if (!isTauri() || !localPath) return [];
-  const fs = await getTauriFs();
-  if (!fs) return [];
+  await loadTauriPlugins();
+  if (!tauriFs) return [];
   try {
-    const entries = await fs.readDir(localPath);
+    const entries = await tauriFs.readDir(localPath);
     const notes: Note[] = [];
     for (const entry of entries) {
       if (entry.name?.endsWith(".json")) {
         try {
-          const content = await fs.readTextFile(`${localPath}/${entry.name}`);
+          const content = await tauriFs.readTextFile(`${localPath}/${entry.name}`);
           notes.push(JSON.parse(content));
         } catch {}
       }
@@ -122,28 +124,29 @@ async function tauriReadAllNotes(localPath: string): Promise<Note[]> {
 
 async function tauriDeleteNote(localPath: string, noteId: string) {
   if (!isTauri()) return;
-  const fs = await getTauriFs();
-  if (!fs) return;
-  try { await fs.remove(`${localPath}/${noteId}.json`); } catch (e) { console.error("Tauri delete failed:", e); }
+  await loadTauriPlugins();
+  if (!tauriFs) return;
+  try { await tauriFs.remove(`${localPath}/${noteId}.json`); } catch (e) { console.error("Tauri delete failed:", e); }
 }
 
 async function tauriPickDirectory(): Promise<string | null> {
   if (!isTauri()) return null;
-  const dialog = await getTauriDialog();
-  if (!dialog) return null;
+  await loadTauriPlugins();
+  if (!tauriDialog) return null;
   try {
-    const selected = await dialog.open({ directory: true, multiple: false, title: "选择笔记保存目录" });
+    const selected = await tauriDialog.open({ directory: true, multiple: false, title: "选择笔记保存目录" });
     return typeof selected === "string" ? selected : null;
   } catch (e) { console.error("Tauri dialog failed:", e); return null; }
 }
 
 // ─── Unified Local Storage API ──────────────────────────────────
 export const localNotesStorage = {
+  /** Get all notes metadata (without content for performance) */
   async getAll(localPath?: string): Promise<Note[]> {
     if (isTauri() && localPath) {
       return tauriReadAllNotes(localPath);
     }
-    // Web: IndexedDB
+    // Web: IndexedDB - return all fields (content is small enough for IndexedDB)
     const db = await openDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readonly");
@@ -162,6 +165,20 @@ export const localNotesStorage = {
       req.onerror = () => reject(req.error);
       tx.oncomplete = () => db.close();
     });
+  },
+
+  /** Get a single note by id (with full content) */
+  async getOne(noteId: string, localPath?: string): Promise<Note | null> {
+    if (isTauri() && localPath) {
+      await loadTauriPlugins();
+      if (!tauriFs) return null;
+      try {
+        const content = await tauriFs.readTextFile(`${localPath}/${noteId}.json`);
+        return JSON.parse(content) as Note;
+      } catch { return null; }
+    }
+    // Web: IndexedDB
+    return idbTransaction("readonly", (store) => store.get(noteId));
   },
 
   async save(note: Note, localPath?: string): Promise<void> {

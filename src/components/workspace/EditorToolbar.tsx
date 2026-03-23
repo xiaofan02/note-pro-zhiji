@@ -3,7 +3,7 @@ import {
   Bold, Italic, Strikethrough, Heading1, Heading2, Heading3,
   List, ListOrdered, CheckSquare, Link, Quote, Code, Minus,
   Palette, Highlighter, Image as ImageIcon, Undo2, Redo2,
-  CodeSquare, Type, AArrowUp, AArrowDown
+  CodeSquare, Type, AArrowUp, AArrowDown, Table as TableIcon,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -317,6 +317,44 @@ const EditorToolbar = ({ editor, onInsertImage }: EditorToolbarProps) => {
                   title={c.label}
                 />
               ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        <div className="w-px h-4 bg-border mx-1" />
+
+        {/* Table */}
+        <Popover>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
+                <button className="inline-flex items-center justify-center w-7 h-7 rounded transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground">
+                  <TableIcon className="w-3.5 h-3.5" />
+                </button>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs">表格</TooltipContent>
+          </Tooltip>
+          <PopoverContent className="w-auto p-2" align="start">
+            <p className="text-xs text-muted-foreground mb-1.5 font-medium">表格操作</p>
+            <div className="flex flex-col gap-0.5 min-w-[140px]">
+              <button onClick={() => (editor.chain().focus() as any).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+                className="px-3 py-1.5 text-xs rounded hover:bg-accent text-left">插入 3×3 表格</button>
+              <button onClick={() => (editor.chain().focus() as any).addColumnBefore().run()}
+                className="px-3 py-1.5 text-xs rounded hover:bg-accent text-left">在左侧插入列</button>
+              <button onClick={() => (editor.chain().focus() as any).addColumnAfter().run()}
+                className="px-3 py-1.5 text-xs rounded hover:bg-accent text-left">在右侧插入列</button>
+              <button onClick={() => (editor.chain().focus() as any).addRowBefore().run()}
+                className="px-3 py-1.5 text-xs rounded hover:bg-accent text-left">在上方插入行</button>
+              <button onClick={() => (editor.chain().focus() as any).addRowAfter().run()}
+                className="px-3 py-1.5 text-xs rounded hover:bg-accent text-left">在下方插入行</button>
+              <div className="h-px bg-border my-0.5" />
+              <button onClick={() => (editor.chain().focus() as any).deleteColumn().run()}
+                className="px-3 py-1.5 text-xs rounded hover:bg-destructive/10 hover:text-destructive text-left">删除当前列</button>
+              <button onClick={() => (editor.chain().focus() as any).deleteRow().run()}
+                className="px-3 py-1.5 text-xs rounded hover:bg-destructive/10 hover:text-destructive text-left">删除当前行</button>
+              <button onClick={() => (editor.chain().focus() as any).deleteTable().run()}
+                className="px-3 py-1.5 text-xs rounded hover:bg-destructive/10 hover:text-destructive text-left">删除整个表格</button>
             </div>
           </PopoverContent>
         </Popover>
