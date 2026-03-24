@@ -43,7 +43,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVGNUU3NzZFMUNCRDAxMzAKUldRd0FiMGNibmRlWDBPditRbDVRajZmdmY3MFdsbW03SH",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEEyOTdEN0RDQjU3NTNBNDMKUldSRE9uVzEzTmVYb2kxQWhldk53dkpOQWtZT29HQ3gyRlZwdHFCeU9PcUMrUWZXTnhwNGNWZ0UK",
       "endpoints": [
         "https://github.com/xiaofan02/note-pro-zhiji/releases/latest/download/latest.json"
       ]
