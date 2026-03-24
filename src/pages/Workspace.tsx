@@ -1002,6 +1002,10 @@ const Workspace = () => {
             <TooltipContent side="right" className="text-xs">退出登录</TooltipContent>
           </Tooltip>
         </div>
+        {/* 版本号 */}
+        <div className="px-2 pb-2 text-center">
+          <span className="text-[10px] text-muted-foreground/40 select-none">v1.0.1</span>
+        </div>
       </div>
     </>
   );

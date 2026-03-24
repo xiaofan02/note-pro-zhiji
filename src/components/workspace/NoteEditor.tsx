@@ -632,7 +632,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
       <div className="flex items-center justify-between px-6 py-3 border-b border-border gap-2 bg-background">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <span className="text-xs text-muted-foreground shrink-0">
-            {new Date(note.updated_at).toLocaleString("zh-CN")}
+            最后修改：{new Date(note.updated_at).toLocaleString("zh-CN")}
           </span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
