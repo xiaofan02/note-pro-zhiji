@@ -178,15 +178,23 @@
 }
 
 .tiptap-editor .tiptap code {
-  @apply text-accent-foreground bg-accent px-1.5 py-0.5 rounded text-xs;
+  @apply text-accent-foreground bg-accent px-1.5 py-0.5 rounded;
+  font-size: var(--code-font-size, 13px);
 }
 
 .tiptap-editor .tiptap pre {
-  @apply bg-muted rounded-lg p-4 my-2 overflow-x-auto text-xs;
+  @apply bg-muted rounded-lg p-4 my-2 overflow-x-auto;
+  font-size: var(--code-font-size, 13px);
+  tab-size: 4;
+  -moz-tab-size: 4;
 }
 
 .tiptap-editor .tiptap pre code {
-  @apply bg-transparent p-0 text-xs;
+  @apply bg-transparent p-0;
+  font-size: var(--code-font-size, 13px);
+  tab-size: 4;
+  -moz-tab-size: 4;
+  white-space: pre;
 }
 
 /* Code block with NodeView - override rounded top when header exists */

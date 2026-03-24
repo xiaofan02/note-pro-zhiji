@@ -45,6 +45,7 @@ import { useRecentNotes } from "@/hooks/useRecentNotes";
 import { Clock, PackageOpen, Zap } from "lucide-react";
 import { useWorkflow } from "@/hooks/useWorkflow";
 import WorkflowPanel from "@/components/workspace/WorkflowPanel";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const Workspace = () => {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -99,6 +100,11 @@ const Workspace = () => {
 
   // Favorites filter
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+
+  // Full-text search dialog
+  const [fullSearchOpen, setFullSearchOpen] = useState(false);
+  const [fullSearchQuery, setFullSearchQuery] = useState("");
+  const fullSearchInputRef = useRef<HTMLInputElement>(null);
 
   // Sort mode (drag to reorder)
   const [sortMode, setSortMode] = useState(false);
@@ -407,6 +413,11 @@ const Workspace = () => {
               setSidebarCollapsed(false);
               setTimeout(() => document.querySelector<HTMLInputElement>('input[placeholder="搜索笔记..."]')?.focus(), 300);
             }
+          } else {
+            // Ctrl+Shift+F → full-text search
+            e.preventDefault();
+            setFullSearchOpen(true);
+            setTimeout(() => fullSearchInputRef.current?.focus(), 50);
           }
           break;
       }
@@ -500,6 +511,12 @@ const Workspace = () => {
       });
     }
   }, [updateNote, notes, noteTagsMap, tags, triggerWorkflow]);
+
+  // Rename note title
+  const handleRenameNote = useCallback(async (id: string, newTitle: string) => {
+    await updateNote(id, { title: newTitle });
+    toast({ title: "已重命名" });
+  }, [updateNote, toast]);
 
   // Workflow-aware tag add — fires on_tag_added trigger
   const handleAddTagToNote = useCallback(async (noteId: string, tagId: string) => {
@@ -897,6 +914,7 @@ const Workspace = () => {
             onDragStart={handleDragStart}
             onTogglePin={togglePin}
             onToggleFavorite={toggleFavorite}
+            onRename={handleRenameNote}
             batchMode={batchMode}
             isSelected={selectedNoteIds.has(note.id)}
             onBatchToggle={toggleBatchSelect}
@@ -1004,7 +1022,7 @@ const Workspace = () => {
         </div>
         {/* 版本号 */}
         <div className="px-2 pb-2 text-center">
-          <span className="text-[10px] text-muted-foreground/40 select-none">v1.0.1</span>
+          <span className="text-[10px] text-muted-foreground/40 select-none">v1.0.2</span>
         </div>
       </div>
     </>
@@ -1304,6 +1322,57 @@ const Workspace = () => {
           </>
         )}
       </TooltipProvider>
+
+      {/* Full-text search dialog */}
+      <Dialog open={fullSearchOpen} onOpenChange={setFullSearchOpen}>
+        <DialogContent className="max-w-lg p-0 overflow-hidden">
+          <DialogHeader className="px-4 pt-4 pb-2 border-b border-border">
+            <DialogTitle className="text-sm font-medium">全文搜索</DialogTitle>
+          </DialogHeader>
+          <div className="px-4 py-3">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <input
+                ref={fullSearchInputRef}
+                type="text"
+                value={fullSearchQuery}
+                onChange={(e) => setFullSearchQuery(e.target.value)}
+                placeholder="搜索所有笔记内容..."
+                className="w-full pl-8 pr-3 py-2 text-sm bg-muted/60 rounded-lg border-none outline-none text-foreground placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-ring/30"
+                autoFocus
+              />
+            </div>
+          </div>
+          <div className="max-h-80 overflow-y-auto px-2 pb-3">
+            {fullSearchQuery.trim() === "" ? (
+              <p className="text-xs text-muted-foreground/50 text-center py-6">输入关键词搜索所有笔记</p>
+            ) : (() => {
+              const q = fullSearchQuery.toLowerCase().trim();
+              const results = notes.filter(n =>
+                (n.title || "").toLowerCase().includes(q) ||
+                (n.content || "").replace(/<[^>]*>/g, "").toLowerCase().includes(q)
+              );
+              if (results.length === 0) return (
+                <p className="text-xs text-muted-foreground/50 text-center py-6">未找到匹配的笔记</p>
+              );
+              return results.map(n => {
+                const plain = (n.content || "").replace(/<[^>]*>/g, "");
+                const idx = plain.toLowerCase().indexOf(q);
+                const snippet = idx === -1 ? plain.slice(0, 80) :
+                  (idx > 20 ? "…" : "") + plain.slice(Math.max(0, idx - 20), idx + 80);
+                return (
+                  <button key={n.id}
+                    onClick={() => { handleSelectNote(n.id, n.folder_id); setFullSearchOpen(false); setFullSearchQuery(""); }}
+                    className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-accent transition-colors mb-0.5">
+                    <p className="text-sm font-medium truncate text-foreground">{n.title || "无标题笔记"}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{snippet}</p>
+                  </button>
+                );
+              });
+            })()}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

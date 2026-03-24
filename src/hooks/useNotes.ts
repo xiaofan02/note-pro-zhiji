@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -31,7 +31,6 @@ export const useNotes = (storageSettings?: StorageSettings) => {
   const fetchNotes = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-
     if (isLocal) {
       try {
         const localNotes = await localNotesStorage.getAll(storageSettings?.localPath);
@@ -101,6 +100,32 @@ export const useNotes = (storageSettings?: StorageSettings) => {
   useEffect(() => {
     fetchNotes();
   }, [fetchNotes]);
+
+  // ─── Local folder auto-sync: poll every 5s when in local mode ──
+  const lastModifiedRef = useRef<Record<string, string>>({});
+  useEffect(() => {
+    if (!isLocal || !user) return;
+    const interval = setInterval(async () => {
+      try {
+        const localNotes = await localNotesStorage.getAll(storageSettings?.localPath);
+        // Build a quick fingerprint: id+updated_at map
+        const fingerprint: Record<string, string> = {};
+        for (const n of localNotes) fingerprint[n.id] = n.updated_at;
+        const prev = lastModifiedRef.current;
+        const changed =
+          Object.keys(fingerprint).length !== Object.keys(prev).length ||
+          Object.keys(fingerprint).some(id => fingerprint[id] !== prev[id]);
+        if (changed) {
+          lastModifiedRef.current = fingerprint;
+          setNotes(localNotes.filter(n => !n.deleted_at));
+          setTrashedNotes(localNotes.filter(n => !!n.deleted_at));
+        }
+      } catch {
+        // silently ignore polling errors
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [isLocal, user, storageSettings?.localPath]);
 
   const createNote = async (folderId?: string) => {
     if (!user) return;

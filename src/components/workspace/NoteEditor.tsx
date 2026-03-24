@@ -38,8 +38,49 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
   DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { Extension } from "@tiptap/core";
 
 const lowlight = createLowlight(common);
+
+// Tab key: insert tab, auto-indent on Enter, backspace deletes full indent
+const TabIndent = Extension.create({
+  name: "tabIndent",
+  addKeyboardShortcuts() {
+    return {
+      Tab: ({ editor }) => {
+        // Insert a real tab character (will be rendered as 4 spaces via CSS)
+        return editor.chain().focus().insertContent("\t").run();
+      },
+      Enter: ({ editor }) => {
+        if (!editor.isActive("codeBlock")) return false;
+        // Get current line text before cursor
+        const { state } = editor;
+        const { from } = state.selection;
+        const textBefore = state.doc.textBetween(Math.max(0, from - 200), from);
+        const lines = textBefore.split("\n");
+        const currentLine = lines[lines.length - 1] || "";
+        // Extract leading whitespace (tabs and spaces)
+        const match = currentLine.match(/^[\t ]*/);
+        const indent = match ? match[0] : "";
+        // Insert newline + same indent
+        return editor.chain().focus().insertContent("\n" + indent).run();
+      },
+      Backspace: ({ editor }) => {
+        if (!editor.isActive("codeBlock")) return false;
+        const { state } = editor;
+        const { from, to } = state.selection;
+        if (from !== to) return false; // has selection, use default
+        // Check if cursor is right after a tab
+        const charBefore = state.doc.textBetween(Math.max(0, from - 1), from);
+        if (charBefore === "\t") {
+          // Delete the tab
+          return editor.chain().focus().deleteRange({ from: from - 1, to: from }).run();
+        }
+        return false; // use default backspace
+      },
+    };
+  },
+});
 
 type AiActionType = "organize" | "summarize" | "rewrite" | "continue" | "polish" | "expand";
 
@@ -103,6 +144,18 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+  // Code block font size (persisted)
+  const [codeFontSize, setCodeFontSize] = useState(() => {
+    return parseInt(localStorage.getItem("codeFontSize") || "13", 10);
+  });
+  const handleCodeFontSize = (delta: number) => {
+    setCodeFontSize(prev => {
+      const next = Math.min(24, Math.max(10, prev + delta));
+      localStorage.setItem("codeFontSize", String(next));
+      return next;
+    });
+  };
+
   // ─── Note link picker ──────────────────────────────────────────
   const [linkPickerOpen, setLinkPickerOpen] = useState(false);
   const [linkPickerQuery, setLinkPickerQuery] = useState("");
@@ -143,9 +196,12 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
         },
         onClose: () => setLinkPickerOpen(false),
       }),
+      TabIndent,
     ],
     content: note.content || "",
   });
+
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -154,6 +210,11 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
     if (editor && editor.getHTML() !== note.content) {
       skipNextUpdate.current = true;
       editor.commands.setContent(note.content || "");
+    }
+    // Auto-focus title for blank new notes
+    const isEmpty = !note.content || note.content === "" || note.content === "<p></p>";
+    if (isEmpty) {
+      setTimeout(() => titleInputRef.current?.focus(), 50);
     }
   }, [note.id]);
 
@@ -626,7 +687,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full">
+    <div className="flex-1 flex flex-col h-full" style={{ "--code-font-size": `${codeFontSize}px` } as React.CSSProperties}>
       <input type="file" ref={fileInputRef} className="hidden" accept="image/png,image/jpeg,image/gif,image/webp" onChange={handleFileSelect} />
 
       <div className="flex items-center justify-between px-6 py-3 border-b border-border gap-2 bg-background">
@@ -808,6 +869,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
 
       <div className="flex-1 overflow-y-auto p-6 space-y-4 relative" style={{ fontSize: `${pageFontSize}px` }}>
         <input type="text" value={title} onChange={(e) => handleTitleChange(e.target.value)}
+          ref={titleInputRef}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); editor?.commands.focus("start"); } }}
           placeholder="笔记标题"
           className="w-full text-2xl font-bold bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/40"
@@ -838,12 +900,21 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
           <span className="text-[11px] text-muted-foreground/60">
             {editor.storage.characterCount?.characters?.() ?? editor.getText().length} 字符 · {editor.getText().trim().split(/\s+/).filter(Boolean).length} 词
           </span>
-          <button
-            onClick={() => setIsReadMode((v) => !v)}
-            className="text-[11px] text-muted-foreground/60 hover:text-foreground transition-colors"
-          >
-            {isReadMode ? "退出阅读模式" : "阅读模式"}
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Code font size control */}
+            <div className="flex items-center gap-1 text-[11px] text-muted-foreground/60">
+              <span>代码字号</span>
+              <button onClick={() => handleCodeFontSize(-1)} className="w-4 h-4 flex items-center justify-center rounded hover:bg-muted hover:text-foreground transition-colors text-xs leading-none">−</button>
+              <span className="w-6 text-center">{codeFontSize}</span>
+              <button onClick={() => handleCodeFontSize(1)} className="w-4 h-4 flex items-center justify-center rounded hover:bg-muted hover:text-foreground transition-colors text-xs leading-none">+</button>
+            </div>
+            <button
+              onClick={() => setIsReadMode((v) => !v)}
+              className="text-[11px] text-muted-foreground/60 hover:text-foreground transition-colors"
+            >
+              {isReadMode ? "退出阅读模式" : "阅读模式"}
+            </button>
+          </div>
         </div>
       )}
       <UpgradePrompt open={showUpgrade} onOpenChange={setShowUpgrade} feature="AI 功能" />
