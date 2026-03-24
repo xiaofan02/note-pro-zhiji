@@ -72,19 +72,30 @@ export const useNotes = (storageSettings?: StorageSettings) => {
   const fetchNoteContent = useCallback(async (id: string): Promise<void> => {
     if (isLocal) {
       // Local mode: load from storage if not already loaded
-      const existing = notes.find(n => n.id === id);
-      if (existing?._contentLoaded) return;
+      // Use functional update to check current state without depending on notes
+      let alreadyLoaded = false;
+      setNotes(prev => {
+        const existing = prev.find(n => n.id === id);
+        alreadyLoaded = !!existing?._contentLoaded;
+        return prev;
+      });
+      if (alreadyLoaded) return;
       try {
         const full = await localNotesStorage.getOne(id, storageSettings?.localPath);
         if (full) {
-          setNotes(prev => prev.map(n => n.id === id ? { ...full, _contentLoaded: true } : n));
+          setNotes(prev => prev.map(n => n.id === id ? { ...n, ...full, _contentLoaded: true } : n));
         }
       } catch {}
       return;
     }
-    // Cloud mode: check if already loaded
-    const existing = notes.find(n => n.id === id);
-    if (existing?._contentLoaded) return;
+    // Cloud mode: check if already loaded via functional update to avoid stale closure
+    let alreadyLoaded = false;
+    setNotes(prev => {
+      const existing = prev.find(n => n.id === id);
+      alreadyLoaded = !!existing?._contentLoaded;
+      return prev;
+    });
+    if (alreadyLoaded) return;
 
     const { data, error } = await supabase
       .from("notes")
@@ -95,7 +106,7 @@ export const useNotes = (storageSettings?: StorageSettings) => {
     if (!error && data) {
       setNotes(prev => prev.map(n => n.id === id ? { ...n, content: data.content || "", _contentLoaded: true } : n));
     }
-  }, [isLocal, notes, storageSettings?.localPath]);
+  }, [isLocal, storageSettings?.localPath]);
 
   useEffect(() => {
     fetchNotes();
@@ -158,7 +169,7 @@ export const useNotes = (storageSettings?: StorageSettings) => {
       if (error) {
         toast({ title: "创建失败", description: error.message, variant: "destructive" });
       } else if (data) {
-        setNotes((prev) => [{ ...data, _contentLoaded: true }, ...prev]);
+        setNotes((prev) => [{ ...data, content: "", _contentLoaded: true }, ...prev]);
         setActiveNoteId(data.id);
       }
     }
@@ -372,10 +383,11 @@ export const useNotes = (storageSettings?: StorageSettings) => {
 
   const toggleFavorite = (id: string) => {
     const favs = getFavoriteIds();
-    if (favs.has(id)) favs.delete(id); else favs.add(id);
+    const wasFavorited = favs.has(id);
+    if (wasFavorited) favs.delete(id); else favs.add(id);
     localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favs]));
-    setNotes(prev => prev.map(n => n.id === id ? { ...n, is_favorited: favs.has(id) } : n));
-    toast({ title: favs.has(id) ? "已加入收藏" : "已取消收藏" });
+    setNotes(prev => prev.map(n => n.id === id ? { ...n, is_favorited: !wasFavorited } : n));
+    toast({ title: wasFavorited ? "已取消收藏" : "已加入收藏" });
   };
 
   // Hydrate favorites from localStorage on load

@@ -46,7 +46,10 @@ const SidebarNoteItem = React.memo(({
     if (batchMode) return;
     e.preventDefault();
     e.stopPropagation();
-    setContextPos({ x: e.clientX, y: e.clientY });
+    const menuW = 180, menuH = 240;
+    const x = e.clientX + menuW > window.innerWidth ? e.clientX - menuW : e.clientX;
+    const y = e.clientY + menuH > window.innerHeight ? e.clientY - menuH : e.clientY;
+    setContextPos({ x, y });
     setContextOpen(true);
   }, [batchMode]);
 
