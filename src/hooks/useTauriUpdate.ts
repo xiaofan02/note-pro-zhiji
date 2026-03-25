@@ -14,13 +14,12 @@ export const useTauriUpdate = (): TauriUpdateState => {
   const [hasUpdate, setHasUpdate] = useState(false);
   const [version, setVersion] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
   // updater module ref
   const [updaterMod, setUpdaterMod] = useState<any>(null);
   const [updateObj, setUpdateObj] = useState<any>(null);
 
   const checkForUpdates = useCallback(async (): Promise<boolean> => {
-    if (!isTauri() || dismissed) return false;
+    if (!isTauri()) return false;
     try {
       const mod = await import("@tauri-apps/plugin-updater");
       setUpdaterMod(mod);
@@ -42,13 +41,13 @@ export const useTauriUpdate = (): TauriUpdateState => {
       setVersion(null);
       return false;
     }
-  }, [dismissed]);
+  }, []);
 
   useEffect(() => {
-    if (!isTauri() || dismissed) return;
-    // Initial check on mount (or when user re-opens after dismiss).
+    if (!isTauri()) return;
+    // Initial check on mount.
     void checkForUpdates();
-  }, [dismissed, checkForUpdates]);
+  }, [checkForUpdates]);
 
   const installUpdate = useCallback(async () => {
     if (!updateObj) return;
@@ -66,7 +65,8 @@ export const useTauriUpdate = (): TauriUpdateState => {
 
   const dismiss = useCallback(() => {
     setHasUpdate(false);
-    setDismissed(true);
+    setUpdateObj(null);
+    setVersion(null);
   }, []);
 
   return { hasUpdate, version, updating, checkForUpdates, installUpdate, dismiss };

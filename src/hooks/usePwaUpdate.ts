@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { isTauri } from "@/lib/localNotesStorage";
 
 interface PwaUpdateState {
   hasUpdate: boolean;
@@ -12,6 +13,8 @@ export const usePwaUpdate = (): PwaUpdateState => {
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
+    // Tauri desktop build should not use PWA service worker; avoid stale UI.
+    if (isTauri()) return;
     if (!("serviceWorker" in navigator)) return;
 
     // Listen for controlling SW change → reload
@@ -55,6 +58,7 @@ export const usePwaUpdate = (): PwaUpdateState => {
   }, []);
 
   const update = useCallback(() => {
+    if (isTauri()) return;
     if (!registration?.waiting) {
       // No waiting SW, just reload to get latest
       window.location.reload();
