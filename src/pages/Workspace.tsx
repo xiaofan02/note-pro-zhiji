@@ -1050,7 +1050,7 @@ const Workspace = () => {
         </div>
         {/* 版本号 */}
         <div className="px-2 pb-2 text-center">
-          <span className="text-[10px] text-muted-foreground/40 select-none">v1.0.3</span>
+          <span className="text-[10px] text-muted-foreground/40 select-none">v{__APP_VERSION__}</span>
         </div>
       </div>
     </>
