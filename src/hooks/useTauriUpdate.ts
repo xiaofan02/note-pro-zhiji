@@ -5,6 +5,7 @@ export interface TauriUpdateState {
   hasUpdate: boolean;
   version: string | null;
   updating: boolean;
+  checkForUpdates: () => Promise<boolean>;
   installUpdate: () => Promise<void>;
   dismiss: () => void;
 }
@@ -18,27 +19,36 @@ export const useTauriUpdate = (): TauriUpdateState => {
   const [updaterMod, setUpdaterMod] = useState<any>(null);
   const [updateObj, setUpdateObj] = useState<any>(null);
 
+  const checkForUpdates = useCallback(async (): Promise<boolean> => {
+    if (!isTauri() || dismissed) return false;
+    try {
+      const mod = await import("@tauri-apps/plugin-updater");
+      setUpdaterMod(mod);
+      const update = await mod.check();
+      if (!update) {
+        setUpdateObj(null);
+        setHasUpdate(false);
+        setVersion(null);
+        return false;
+      }
+      setUpdateObj(update);
+      setVersion(update.version ?? null);
+      setHasUpdate(true);
+      return true;
+    } catch (e) {
+      console.error("Tauri update check failed:", e);
+      setUpdateObj(null);
+      setHasUpdate(false);
+      setVersion(null);
+      return false;
+    }
+  }, [dismissed]);
+
   useEffect(() => {
     if (!isTauri() || dismissed) return;
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const mod = await import("@tauri-apps/plugin-updater");
-        if (cancelled) return;
-        setUpdaterMod(mod);
-        const update = await mod.check();
-        if (cancelled || !update) return;
-        setUpdateObj(update);
-        setVersion(update.version ?? null);
-        setHasUpdate(true);
-      } catch {
-        // updater plugin not configured or no network — silently ignore
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [dismissed]);
+    // Initial check on mount (or when user re-opens after dismiss).
+    void checkForUpdates();
+  }, [dismissed, checkForUpdates]);
 
   const installUpdate = useCallback(async () => {
     if (!updateObj) return;
@@ -59,5 +69,5 @@ export const useTauriUpdate = (): TauriUpdateState => {
     setDismissed(true);
   }, []);
 
-  return { hasUpdate, version, updating, installUpdate, dismiss };
+  return { hasUpdate, version, updating, checkForUpdates, installUpdate, dismiss };
 };

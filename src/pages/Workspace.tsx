@@ -33,7 +33,7 @@ import UserAvatar from "@/components/workspace/UserAvatar";
 import TrashBin from "@/components/workspace/TrashBin";
 import NoteTemplates from "@/components/workspace/NoteTemplates";
 import { useDocumentImport } from "@/hooks/useDocumentImport";
-import { getStorageSettings, setStorageSettings, StorageSettings, localNotesStorage } from "@/lib/localNotesStorage";
+import { getStorageSettings, setStorageSettings, StorageSettings, localNotesStorage, isTauri } from "@/lib/localNotesStorage";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -56,6 +56,9 @@ const Workspace = () => {
   const { hasUpdate, updating, update: pwaUpdate } = usePwaUpdate();
   const [pwaBannerDismissed, setPwaBannerDismissed] = useState(false);
   const tauriUpdate = useTauriUpdate();
+  const isTauriEnv = isTauri();
+  const updateAvailable = isTauriEnv ? tauriUpdate.hasUpdate : hasUpdate;
+  const updateBusy = isTauriEnv ? tauriUpdate.updating : updating;
   const [storageSettings, setStorageSettingsState] = useState<StorageSettings>(getStorageSettings);
   const { notes, trashedNotes, loading, activeNote, activeNoteId, setActiveNoteId, createNote, updateNote, deleteNote, restoreNote, permanentDeleteNote, emptyTrash, refreshNotes, fetchNoteContent, togglePin, toggleShare, toggleFavorite } = useNotes(storageSettings);
   const [contentLoading, setContentLoading] = useState(false);
@@ -996,19 +999,44 @@ const Workspace = () => {
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                onClick={() => { pwaUpdate(); toast({ title: hasUpdate ? "正在更新..." : "正在检查更新...", description: hasUpdate ? "应用即将刷新" : "已是最新版本" }); }}
+                onClick={() => {
+                  if (isTauriEnv) {
+                    if (tauriUpdate.hasUpdate) {
+                      void tauriUpdate.installUpdate();
+                      toast({ title: "正在更新...", description: "应用即将重启" });
+                    } else {
+                      void tauriUpdate
+                        .checkForUpdates()
+                        .then((found) => {
+                          toast({
+                            title: found ? "发现新版本" : "已是最新版本",
+                            description: found ? "请在更新横幅中点击立即更新" : undefined,
+                          });
+                        })
+                        .catch(() => {
+                          toast({ title: "检查更新失败", description: "请检查网络或更新配置" });
+                        });
+                    }
+                  } else {
+                    pwaUpdate();
+                    toast({
+                      title: hasUpdate ? "正在更新..." : "正在检查更新...",
+                      description: hasUpdate ? "应用即将刷新" : "已是最新版本",
+                    });
+                  }
+                }}
                 className={cn(
                   "p-2 rounded-lg transition-colors",
-                  hasUpdate
+                  updateAvailable
                     ? "text-primary bg-primary/10 hover:bg-primary/20 animate-pulse"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}
               >
-                <RefreshCw className={cn("w-4 h-4", updating && "animate-spin")} />
+                <RefreshCw className={cn("w-4 h-4", updateBusy && "animate-spin")} />
               </button>
             </TooltipTrigger>
             <TooltipContent side="right" className="text-xs">
-              {hasUpdate ? "有新版本，点击更新" : "检查更新"}
+              {updateAvailable ? "有新版本，点击更新" : "检查更新"}
             </TooltipContent>
           </Tooltip>
           <Tooltip>
