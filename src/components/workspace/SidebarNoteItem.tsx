@@ -25,11 +25,12 @@ interface SidebarNoteItemProps {
   batchMode?: boolean;
   isSelected?: boolean;
   onBatchToggle?: (id: string) => void;
+  readOnly?: boolean;
 }
 
 const SidebarNoteItem = React.memo(({
   note, isActive, folders, onSelect, onDelete, onMove, onDragStart, onTogglePin, onToggleFavorite, onRename,
-  searchQuery = "", batchMode = false, isSelected = false, onBatchToggle,
+  searchQuery = "", batchMode = false, isSelected = false, onBatchToggle, readOnly = false,
 }: SidebarNoteItemProps) => {
   const handleClick = useCallback(() => {
     if (batchMode && onBatchToggle) { onBatchToggle(note.id); return; }
@@ -43,7 +44,7 @@ const SidebarNoteItem = React.memo(({
   const [renameVal, setRenameVal] = useState(note.title || "");
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
-    if (batchMode) return;
+    if (batchMode || readOnly) return;
     e.preventDefault();
     e.stopPropagation();
     const menuW = 180, menuH = 240;
@@ -51,7 +52,7 @@ const SidebarNoteItem = React.memo(({
     const y = e.clientY + menuH > window.innerHeight ? e.clientY - menuH : e.clientY;
     setContextPos({ x, y });
     setContextOpen(true);
-  }, [batchMode]);
+  }, [batchMode, readOnly]);
 
   const handleRenameSubmit = () => {
     if (renameVal.trim() && onRename) onRename(note.id, renameVal.trim());
@@ -165,7 +166,7 @@ const SidebarNoteItem = React.memo(({
             <TooltipContent side="top" className="text-xs">{note.is_pinned ? "取消置顶" : "置顶"}</TooltipContent>
           </Tooltip>
         )}
-        {folders.length > 0 && (
+        {!readOnly && folders.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -190,6 +191,7 @@ const SidebarNoteItem = React.memo(({
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+        {!readOnly && (
         <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
           <AlertDialogTrigger asChild>
             <button
@@ -215,11 +217,12 @@ const SidebarNoteItem = React.memo(({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        )}
       </div>
       )}
 
       {/* 右键菜单 */}
-      {contextOpen && (
+      {contextOpen && !readOnly && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setContextOpen(false)} />
           <div

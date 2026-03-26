@@ -17,6 +17,7 @@ interface SortableNoteItemProps {
   onDragStart: (e: React.DragEvent, noteId: string) => void;
   onTogglePin?: (id: string) => void;
   onToggleFavorite?: (id: string) => void;
+  readOnly?: boolean;
   searchQuery?: string;
   batchMode?: boolean;
   isSelected?: boolean;

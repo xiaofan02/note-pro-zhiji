@@ -256,19 +256,19 @@ const Workspace = () => {
   }, [createNote]);
 
   const handleMoveNote = useCallback(async (noteId: string, folderId: string | null) => {
+    // Local filesystem mode is read-only to avoid leaving duplicate note files
+    // when folder_id changes (we currently save into the new folder but don't delete old files).
     if (storageSettings.mode === "local") {
-      const target = notes.find((n) => n.id === noteId);
-      if (!target) return;
-      const updated = { ...target, folder_id: folderId, updated_at: new Date().toISOString() };
-      await localNotesStorage.save(updated, storageSettings.localPath);
-      await refreshNotes();
-    } else {
-      const ok = await moveNoteToFolder(noteId, folderId);
-      if (ok) await refreshNotes();
+      toast({ title: "本地模式只读", description: "为避免数据重复，目录移动功能已暂时禁用。", variant: "destructive" });
+      return;
     }
-    const folderName = folderId ? folders.find(f => f.id === folderId)?.name : "未分类";
+
+    const ok = await moveNoteToFolder(noteId, folderId);
+    if (ok) await refreshNotes();
+
+    const folderName = folderId ? effectiveFolders.find((f) => f.id === folderId)?.name : "未分类";
     toast({ title: "已移动", description: `笔记已移至「${folderName}」` });
-  }, [storageSettings, notes, refreshNotes, moveNoteToFolder, folders, toast]);
+  }, [storageSettings, refreshNotes, moveNoteToFolder, effectiveFolders, toast]);
 
   // Drag & drop handlers
   const handleDragStart = useCallback((e: React.DragEvent, noteId: string) => {
@@ -542,12 +542,26 @@ const Workspace = () => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
     const result = await importFile(file);
-    if (result) {
+    if (!result) {
+      toast({
+        title: "导入失败",
+        description: "文件解析失败，请检查文件格式是否支持。",
+        variant: "destructive",
+      });
+      e.target.value = "";
+      return;
+    }
+
+    try {
       if (storageSettings.mode === "local") {
         const now = new Date().toISOString();
         const note = {
-          id: crypto.randomUUID(), title: result.title, content: result.content,
-          folder_id: activeFolderId || null, created_at: now, updated_at: now,
+          id: crypto.randomUUID(),
+          title: result.title,
+          content: result.content,
+          folder_id: activeFolderId || null,
+          created_at: now,
+          updated_at: now,
         };
         await localNotesStorage.save(note, storageSettings.localPath);
         await refreshNotes();
@@ -555,14 +569,30 @@ const Workspace = () => {
       } else {
         const { data, error } = await supabase
           .from("notes")
-          .insert({ user_id: user.id, title: result.title, content: result.content, folder_id: activeFolderId || null })
+          .insert({
+            user_id: user.id,
+            title: result.title,
+            content: result.content,
+            folder_id: activeFolderId || null,
+          })
           .select("id, title, content, folder_id, created_at, updated_at")
           .single();
-        if (!error && data) { await refreshNotes(); setActiveNoteId(data.id); }
+        if (!error && data) {
+          await refreshNotes();
+          setActiveNoteId(data.id);
+        }
       }
+
       if (activeFolderId) setExpandedFolders((prev) => new Set(prev).add(activeFolderId));
       toast({ title: "导入成功", description: `已导入「${result.title}」` });
+    } catch (err: any) {
+      toast({
+        title: "导入失败",
+        description: err?.message || "保存失败",
+        variant: "destructive",
+      });
     }
+
     e.target.value = "";
   }, [user, importFile, storageSettings, activeFolderId, refreshNotes, setActiveNoteId, toast]);
 
@@ -634,7 +664,57 @@ const Workspace = () => {
   }, [filteredNotes]);
 
   const isSearching = !!(searchQuery || selectedTagId);
-  const rootFolders = useMemo(() => getChildFolders(null), [getChildFolders]);
+  const isLocalFs = storageSettings.mode === "local" && isTauriEnv;
+
+  const localFsFolders = useMemo(() => {
+    if (!isLocalFs) return [];
+    const prefix = "fsdir:";
+    const folderMap = new Map<string, { id: string; name: string; parent_id: string | null; created_at: string; updated_at: string }>();
+
+    const ensureFolder = (relDir: string, createdAt?: string, updatedAt?: string) => {
+      const parentRel = relDir.includes("/") ? relDir.split("/").slice(0, -1).join("/") : "";
+      const id = `fsdir:${encodeURIComponent(relDir)}`;
+      const name = relDir.split("/").slice(-1)[0] || "目录";
+      const parent_id = parentRel ? `fsdir:${encodeURIComponent(parentRel)}` : null;
+
+      const existing = folderMap.get(id);
+      if (!existing) {
+        folderMap.set(id, {
+          id,
+          name,
+          parent_id,
+          created_at: createdAt || new Date().toISOString(),
+          updated_at: updatedAt || new Date().toISOString(),
+        });
+      } else {
+        if (createdAt && new Date(createdAt).getTime() < new Date(existing.created_at).getTime()) existing.created_at = createdAt;
+        if (updatedAt && new Date(updatedAt).getTime() > new Date(existing.updated_at).getTime()) existing.updated_at = updatedAt;
+      }
+    };
+
+    for (const n of notes) {
+      if (!n.folder_id || !n.folder_id.startsWith(prefix)) continue;
+      const relDir = decodeURIComponent(n.folder_id.slice(prefix.length));
+      if (!relDir) continue;
+      const parts = relDir.split("/").filter(Boolean);
+
+      let acc = "";
+      for (let i = 0; i < parts.length; i++) {
+        acc = acc ? `${acc}/${parts[i]}` : parts[i];
+        ensureFolder(acc, n.created_at, n.updated_at);
+      }
+    }
+
+    return Array.from(folderMap.values()).sort((a, b) => a.name.localeCompare(b.name, "zh"));
+  }, [isLocalFs, notes]);
+
+  const effectiveFolders = isLocalFs ? localFsFolders : folders;
+  const effectiveGetChildFolders = useCallback(
+    (parentId: string | null) => (isLocalFs ? localFsFolders.filter((f) => f.parent_id === parentId) : getChildFolders(parentId)),
+    [isLocalFs, localFsFolders, getChildFolders]
+  );
+
+  const rootFolders = useMemo(() => effectiveGetChildFolders(null), [effectiveGetChildFolders]);
 
   // ─── Loading state ─────────────────────────────────────────────
 
@@ -730,14 +810,16 @@ const Workspace = () => {
           <Plus className="w-4 h-4 shrink-0" />
           <span className="truncate">新建笔记</span>
         </button>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button onClick={() => handleCreateFolder()} className="px-2 py-2 rounded-lg bg-accent text-accent-foreground hover:bg-accent/80 transition-colors shrink-0">
-              <FolderPlus className="w-4 h-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-xs">新建目录</TooltipContent>
-        </Tooltip>
+        {!isLocalFs && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button onClick={() => handleCreateFolder()} className="px-2 py-2 rounded-lg bg-accent text-accent-foreground hover:bg-accent/80 transition-colors shrink-0">
+                <FolderPlus className="w-4 h-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs">新建目录</TooltipContent>
+          </Tooltip>
+        )}
         <Tooltip>
           <TooltipTrigger asChild>
             <button onClick={() => setShowFavoritesOnly(v => !v)}
@@ -766,19 +848,21 @@ const Workspace = () => {
           <button onClick={handleBatchFavorite} className="px-2 py-1 rounded text-xs bg-yellow-400/20 text-yellow-600 hover:bg-yellow-400/30 transition-colors flex items-center gap-1">
             <Star className="w-3 h-3" /> 收藏
           </button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="px-2 py-1 rounded text-xs bg-accent text-accent-foreground hover:bg-accent/80 transition-colors flex items-center gap-1">
-                <FolderInput className="w-3 h-3" /> 移动
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem onClick={() => handleBatchMove(null)} className="text-xs">未分类</DropdownMenuItem>
-              {folders.map(f => (
-                <DropdownMenuItem key={f.id} onClick={() => handleBatchMove(f.id)} className="text-xs">{f.name}</DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {!isLocalFs && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="px-2 py-1 rounded text-xs bg-accent text-accent-foreground hover:bg-accent/80 transition-colors flex items-center gap-1">
+                  <FolderInput className="w-3 h-3" /> 移动
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem onClick={() => handleBatchMove(null)} className="text-xs">未分类</DropdownMenuItem>
+                {effectiveFolders.map(f => (
+                  <DropdownMenuItem key={f.id} onClick={() => handleBatchMove(f.id)} className="text-xs">{f.name}</DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <button onClick={handleBatchDelete} className="px-2 py-1 rounded text-xs bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors flex items-center gap-1">
             <Trash2 className="w-3 h-3" /> 删除
           </button>
@@ -815,14 +899,14 @@ const Workspace = () => {
                 key={folder.id}
                 folder={folder}
                 notesByFolder={notesByFolder}
-                getChildFolders={getChildFolders}
+                getChildFolders={effectiveGetChildFolders}
                 expandedFolders={expandedFolders}
                 activeFolderId={activeFolderId}
                 activeNoteId={activeNoteId}
                 dragOverFolderId={dragOverFolderId}
                 renamingFolderId={renamingFolderId}
                 renameValue={renameValue}
-                folders={folders}
+                folders={effectiveFolders}
                 onToggleFolder={toggleFolder}
                 onSetActiveFolder={setActiveFolderId}
                 onRenameValueChange={setRenameValue}
@@ -840,10 +924,11 @@ const Workspace = () => {
                 onFolderDragLeave={handleFolderDragLeave}
                 onDropOnFolder={handleDropOnFolder}
                 onTogglePin={togglePin}
+                readOnly={isLocalFs}
               />
             ))}
 
-            {(unfolderedNotes.length > 0 || folders.length > 0) && (
+            {(unfolderedNotes.length > 0 || effectiveFolders.length > 0) && (
               <div
                 onDragOver={(e) => e.preventDefault()}
                 onDragEnter={handleUnfolderedDragEnter}
@@ -857,7 +942,7 @@ const Workspace = () => {
                 <p
                   className={cn(
                     "text-[11px] text-muted-foreground/50 px-3 pb-1 font-medium cursor-pointer hover:text-muted-foreground transition-colors flex items-center gap-1",
-                    activeFolderId === null && folders.length > 0 && "text-primary"
+                    activeFolderId === null && effectiveFolders.length > 0 && "text-primary"
                   )}
                   onClick={() => setActiveFolderId(null)}
                 >
@@ -882,7 +967,7 @@ const Workspace = () => {
                         key={note.id}
                         note={note}
                         isActive={activeNoteId === note.id}
-                        folders={folders}
+                        folders={isLocalFs ? [] : effectiveFolders}
                         onSelect={handleSelectNote}
                         onDelete={deleteNote}
                         onMove={handleMoveNote}
@@ -893,6 +978,7 @@ const Workspace = () => {
                         isSelected={selectedNoteIds.has(note.id)}
                         onBatchToggle={toggleBatchSelect}
                         sortMode={sortMode}
+                        readOnly={isLocalFs}
                       />
                     ))}
                   </SortableContext>
@@ -910,7 +996,7 @@ const Workspace = () => {
             key={note.id}
             note={note}
             isActive={activeNoteId === note.id}
-            folders={folders}
+            folders={isLocalFs ? [] : effectiveFolders}
             onSelect={handleSelectNote}
             onDelete={deleteNote}
             onMove={handleMoveNote}
@@ -922,6 +1008,7 @@ const Workspace = () => {
             isSelected={selectedNoteIds.has(note.id)}
             onBatchToggle={toggleBatchSelect}
             searchQuery={searchQuery}
+            readOnly={isLocalFs}
           />
         ))}
       </div>

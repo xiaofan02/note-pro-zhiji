@@ -1,5 +1,4 @@
 import { useCallback, useRef } from "react";
-import { useToast } from "@/hooks/use-toast";
 
 const ACCEPTED_EXTENSIONS = [
   ".txt", ".md", ".markdown", ".html", ".htm", ".csv",
@@ -154,25 +153,18 @@ async function parseFile(file: File): Promise<{ title: string; content: string }
 }
 
 export const useDocumentImport = () => {
-  const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const importFile = useCallback(
     async (file: File): Promise<{ title: string; content: string } | null> => {
       try {
         const result = await parseFile(file);
-        toast({ title: "导入成功", description: `已导入「${result.title}」` });
         return result;
       } catch (e: any) {
-        toast({
-          title: "导入失败",
-          description: e.message || "无法解析该文件",
-          variant: "destructive",
-        });
         return null;
       }
     },
-    [toast]
+    []
   );
 
   return { importFile, fileInputRef, acceptString: ACCEPT_STRING };

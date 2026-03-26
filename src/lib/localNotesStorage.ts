@@ -49,6 +49,22 @@ export function setStorageSettings(settings: StorageSettings) {
   localStorage.setItem(STORAGE_SETTINGS_KEY, JSON.stringify(settings));
 }
 
+// ─── Helpers (Tauri paths + virtual folder id mapping) ──────────
+function normalizeFsPath(p: string) {
+  // Tauri runs on native OS; however user-selected paths may contain backslashes.
+  // Normalize to `/` and trim trailing slashes so we build consistent virtual ids.
+  return p.replace(/\\/g, "/").replace(/\/+$/g, "");
+}
+
+const FS_FOLDER_PREFIX = "fsdir:";
+function folderIdFromRelDir(relDir: string): string {
+  return `${FS_FOLDER_PREFIX}${encodeURIComponent(relDir)}`;
+}
+
+function isFsFolderId(folderId: string | null | undefined): folderId is string {
+  return typeof folderId === "string" && folderId.startsWith(FS_FOLDER_PREFIX);
+}
+
 // ─── IndexedDB Helpers (Web local mode) ─────────────────────────
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -97,36 +113,113 @@ async function tauriWriteNote(localPath: string, note: Note & { user_id?: string
   if (!isTauri()) return;
   await loadTauriPlugins();
   if (!tauriFs) return;
-  try {
-    await tauriFs.mkdir(localPath, { recursive: true }).catch(() => {});
-    await tauriFs.writeTextFile(`${localPath}/${note.id}.json`, JSON.stringify(note, null, 2));
-  } catch (e) { console.error("Tauri write failed:", e); }
+
+  const base = normalizeFsPath(localPath);
+  // If note.folder_id is a virtual filesystem folder id, write into that subdir.
+  // Otherwise, default to base root.
+  let targetDir = base;
+  if (isFsFolderId(note.folder_id)) {
+    const relDir = decodeURIComponent(note.folder_id.slice(FS_FOLDER_PREFIX.length));
+    targetDir = relDir ? `${base}/${relDir}` : base;
+  }
+
+  await tauriFs.mkdir(targetDir, { recursive: true });
+  await tauriFs.writeTextFile(`${targetDir}/${note.id}.json`, JSON.stringify(note, null, 2));
+}
+
+async function tauriReadAllNotesRecursive(basePath: string, currentDir: string): Promise<Note[]> {
+  const entries = await tauriFs!.readDir(currentDir);
+  const notes: Note[] = [];
+
+  for (const entry of entries) {
+    const entryPath = `${currentDir}/${entry.name}`;
+
+    if (entry.isDirectory) {
+      notes.push(...(await tauriReadAllNotesRecursive(basePath, entryPath)));
+      continue;
+    }
+
+    if (entry.isFile && entry.name?.endsWith(".json")) {
+      const content = await tauriFs!.readTextFile(entryPath);
+      const note = JSON.parse(content) as Note;
+
+      // Always override folder_id based on the filesystem directory path,
+      // so existing notes under nested folders become visible in the UI.
+      const relDir = currentDir === basePath ? "" : currentDir.slice(basePath.length + 1);
+      note.folder_id = relDir ? folderIdFromRelDir(relDir) : null;
+
+      notes.push(note);
+    }
+  }
+
+  return notes;
 }
 
 async function tauriReadAllNotes(localPath: string): Promise<Note[]> {
   if (!isTauri() || !localPath) return [];
   await loadTauriPlugins();
   if (!tauriFs) return [];
-  try {
-    const entries = await tauriFs.readDir(localPath);
-    const notes: Note[] = [];
-    for (const entry of entries) {
-      if (entry.name?.endsWith(".json")) {
-        try {
-          const content = await tauriFs.readTextFile(`${localPath}/${entry.name}`);
-          notes.push(JSON.parse(content));
-        } catch {}
-      }
+
+  const base = normalizeFsPath(localPath);
+  const notes = await tauriReadAllNotesRecursive(base, base);
+  return notes.sort((a: Note, b: Note) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+}
+
+async function tauriReadOneByIdRecursive(basePath: string, currentDir: string, noteId: string): Promise<Note | null> {
+  const entries = await tauriFs!.readDir(currentDir);
+
+  for (const entry of entries) {
+    const entryPath = `${currentDir}/${entry.name}`;
+
+    if (entry.isDirectory) {
+      const found = await tauriReadOneByIdRecursive(basePath, entryPath, noteId);
+      if (found) return found;
+      continue;
     }
-    return notes.sort((a: Note, b: Note) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-  } catch (e) { console.error("Tauri read failed:", e); return []; }
+
+    if (entry.isFile && entry.name === `${noteId}.json`) {
+      const content = await tauriFs!.readTextFile(entryPath);
+      const note = JSON.parse(content) as Note;
+      const relDir = currentDir === basePath ? "" : currentDir.slice(basePath.length + 1);
+      note.folder_id = relDir ? folderIdFromRelDir(relDir) : null;
+      return note;
+    }
+  }
+
+  return null;
 }
 
 async function tauriDeleteNote(localPath: string, noteId: string) {
   if (!isTauri()) return;
   await loadTauriPlugins();
   if (!tauriFs) return;
-  try { await tauriFs.remove(`${localPath}/${noteId}.json`); } catch (e) { console.error("Tauri delete failed:", e); }
+  const base = normalizeFsPath(localPath);
+
+  // Delete in the root first (fast path).
+  try {
+    await tauriFs.remove(`${base}/${noteId}.json`);
+    return;
+  } catch {}
+
+  // Fallback: delete recursively for older notes stored in subfolders.
+  async function delRec(dir: string): Promise<boolean> {
+    const entries = await tauriFs!.readDir(dir);
+    for (const entry of entries) {
+      const entryPath = `${dir}/${entry.name}`;
+      if (entry.isDirectory) {
+        const ok = await delRec(entryPath);
+        if (ok) return true;
+        continue;
+      }
+      if (entry.isFile && entry.name === `${noteId}.json`) {
+        await tauriFs!.remove(entryPath);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  await delRec(base);
 }
 
 async function tauriPickDirectory(): Promise<string | null> {
@@ -172,10 +265,17 @@ export const localNotesStorage = {
     if (isTauri() && localPath) {
       await loadTauriPlugins();
       if (!tauriFs) return null;
+      const base = normalizeFsPath(localPath);
+      // Fast path: try root.
       try {
-        const content = await tauriFs.readTextFile(`${localPath}/${noteId}.json`);
-        return JSON.parse(content) as Note;
-      } catch { return null; }
+        const content = await tauriFs.readTextFile(`${base}/${noteId}.json`);
+        const note = JSON.parse(content) as Note;
+        note.folder_id = null;
+        return note;
+      } catch {}
+
+      // Fallback: recursive scan for older notes in subfolders.
+      return tauriReadOneByIdRecursive(base, base, noteId);
     }
     // Web: IndexedDB
     return idbTransaction("readonly", (store) => store.get(noteId));
