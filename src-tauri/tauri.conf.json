@@ -7,7 +7,7 @@
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
     "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "VITE_PWA=false npm run build"
+    "beforeBuildCommand": "node -e \"process.env.VITE_PWA='false'; require('child_process').execSync('npm run build',{stdio:'inherit',shell:true,env:process.env});\""
   },
   "app": {
     "windows": [
