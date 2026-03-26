@@ -7,7 +7,7 @@
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
     "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "node build-frontend.mjs"
+    "beforeBuildCommand": "node src-tauri/build-frontend.mjs"
   },
   "app": {
     "windows": [
