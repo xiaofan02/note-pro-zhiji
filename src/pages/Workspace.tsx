@@ -266,9 +266,10 @@ const Workspace = () => {
     const ok = await moveNoteToFolder(noteId, folderId);
     if (ok) await refreshNotes();
 
-    const folderName = folderId ? effectiveFolders.find((f) => f.id === folderId)?.name : "未分类";
+    // Avoid referencing effectiveFolders before it's initialized (prevents TDZ crash).
+    const folderName = folderId ? folders.find((f) => f.id === folderId)?.name : "未分类";
     toast({ title: "已移动", description: `笔记已移至「${folderName}」` });
-  }, [storageSettings, refreshNotes, moveNoteToFolder, effectiveFolders, toast]);
+  }, [storageSettings, refreshNotes, moveNoteToFolder, folders, toast]);
 
   // Drag & drop handlers
   const handleDragStart = useCallback((e: React.DragEvent, noteId: string) => {
