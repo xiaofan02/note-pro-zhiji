@@ -161,6 +161,114 @@
   @apply text-foreground;
 }
 
+.tiptap-editor .tiptap ol li::marker {
+  font-size: 1em;
+  font-weight: inherit;
+}
+
+.tiptap-editor .tiptap ol[data-numbering-style="cjk"] {
+  list-style-type: cjk-ideographic;
+}
+
+/* Multi-level outline numbering: 1 / 1.1 / 1.1.1 */
+.tiptap-editor .tiptap ol[data-numbering-style="outline-decimal"] {
+  list-style: none;
+  counter-reset: ol-level-1;
+  padding-left: 0;
+}
+
+.tiptap-editor .tiptap ol[data-numbering-style="outline-decimal"] > li {
+  counter-increment: ol-level-1;
+  list-style: none;
+  position: relative;
+  padding-left: 3.2em;
+}
+
+.tiptap-editor .tiptap ol[data-numbering-style="outline-decimal"] > li > p,
+.tiptap-editor .tiptap ol[data-numbering-style="outline-decimal"] > li > div,
+.tiptap-editor .tiptap ol[data-numbering-style="outline-decimal"] > li > ol > li > p,
+.tiptap-editor .tiptap ol[data-numbering-style="outline-decimal"] > li > ol > li > div,
+.tiptap-editor .tiptap ol[data-numbering-style="outline-decimal"] > li > ol > li > ol > li > p,
+.tiptap-editor .tiptap ol[data-numbering-style="outline-decimal"] > li > ol > li > ol > li > div {
+  display: inline;
+  margin: 0;
+}
+
+.tiptap-editor .tiptap ol[data-numbering-style="outline-decimal"] > li::before {
+  content: counter(ol-level-1) ".";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 2.8em;
+  text-align: right;
+  padding-right: 0.4em;
+  white-space: nowrap;
+  font-size: 1em;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+.tiptap-editor .tiptap ol[data-numbering-style="outline-decimal"] > li > ol {
+  list-style: none;
+  counter-reset: ol-level-2;
+  padding-left: 0;
+  margin-top: 0.15em;
+}
+
+.tiptap-editor .tiptap ol[data-numbering-style="outline-decimal"] > li > ol > li {
+  counter-increment: ol-level-2;
+  list-style: none;
+  position: relative;
+  padding-left: 4.2em;
+}
+
+.tiptap-editor .tiptap ol[data-numbering-style="outline-decimal"] > li > ol > li::before {
+  content: counter(ol-level-1) "." counter(ol-level-2);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 3.8em;
+  text-align: right;
+  padding-right: 0.4em;
+  white-space: nowrap;
+  font-size: 1em;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+.tiptap-editor .tiptap ol[data-numbering-style="outline-decimal"] > li > ol > li > ol {
+  list-style: none;
+  counter-reset: ol-level-3;
+  padding-left: 0;
+  margin-top: 0.15em;
+}
+
+.tiptap-editor .tiptap ol[data-numbering-style="outline-decimal"] > li > ol > li > ol > li {
+  counter-increment: ol-level-3;
+  list-style: none;
+  position: relative;
+  padding-left: 5.2em;
+}
+
+.tiptap-editor .tiptap ol[data-numbering-style="outline-decimal"] > li > ol > li > ol > li::before {
+  content: counter(ol-level-1) "." counter(ol-level-2) "." counter(ol-level-3);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 4.8em;
+  text-align: right;
+  padding-right: 0.4em;
+  white-space: nowrap;
+  font-size: 1em;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+body.format-painter-cursor,
+body.format-painter-cursor * {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath fill='%233b82f6' d='M6 2l4 4-1.5 1.5L12 11l2-2 4 4-5 5-4-4 2-2-3.5-3.5L6 10 2 6l4-4z'/%3E%3C/svg%3E") 2 18, copy !important;
+}
+
 .tiptap-editor .tiptap ul[data-type="taskList"] {
   @apply list-none pl-0;
 }

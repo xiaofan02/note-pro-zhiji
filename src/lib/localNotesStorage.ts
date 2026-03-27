@@ -57,12 +57,17 @@ function normalizeFsPath(p: string) {
 }
 
 const FS_FOLDER_PREFIX = "fsdir:";
+const FILE_NOTE_PREFIX = "file:";
 function folderIdFromRelDir(relDir: string): string {
   return `${FS_FOLDER_PREFIX}${encodeURIComponent(relDir)}`;
 }
 
 function isFsFolderId(folderId: string | null | undefined): folderId is string {
   return typeof folderId === "string" && folderId.startsWith(FS_FOLDER_PREFIX);
+}
+
+function isFileNoteId(noteId: string | null | undefined): noteId is string {
+  return typeof noteId === "string" && noteId.startsWith(FILE_NOTE_PREFIX);
 }
 
 // ─── IndexedDB Helpers (Web local mode) ─────────────────────────
@@ -115,6 +120,19 @@ async function tauriWriteNote(localPath: string, note: Note & { user_id?: string
   if (!tauriFs) return;
 
   const base = normalizeFsPath(localPath);
+  if (isFileNoteId(note.id)) {
+    // For notes loaded from existing local files, write back to original file path.
+    const relPath = decodeURIComponent(note.id.slice(FILE_NOTE_PREFIX.length));
+    const targetPath = `${base}/${relPath}`;
+    const plainText = note.content
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p>/gi, "\n")
+      .replace(/<[^>]*>/g, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    await tauriFs.writeTextFile(targetPath, plainText);
+    return;
+  }
   // If note.folder_id is a virtual filesystem folder id, write into that subdir.
   // Otherwise, default to base root.
   let targetDir = base;
@@ -131,6 +149,97 @@ async function tauriReadAllNotesRecursive(basePath: string, currentDir: string):
   const entries = await tauriFs!.readDir(currentDir);
   const notes: Note[] = [];
 
+  const toIsoDate = (value: unknown, fallback: string): string => {
+    if (typeof value !== "string" || !value) return fallback;
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? fallback : d.toISOString();
+  };
+
+  const normalizeLegacyNote = (raw: any, fallbackId: string, relDir: string): Note | null => {
+    if (!raw || typeof raw !== "object") return null;
+    const now = new Date().toISOString();
+    const id =
+      (typeof raw.id === "string" && raw.id) ||
+      (typeof raw.noteId === "string" && raw.noteId) ||
+      fallbackId;
+    if (!id) return null;
+    const createdAt = toIsoDate(raw.created_at ?? raw.createdAt, now);
+    const updatedAt = toIsoDate(raw.updated_at ?? raw.updatedAt ?? createdAt, createdAt);
+    return {
+      id,
+      title: typeof raw.title === "string" && raw.title.trim() ? raw.title : "无标题笔记",
+      content: typeof raw.content === "string" ? raw.content : "",
+      folder_id: relDir ? folderIdFromRelDir(relDir) : null,
+      created_at: createdAt,
+      updated_at: updatedAt,
+      deleted_at: raw.deleted_at ?? null,
+      is_pinned: !!raw.is_pinned,
+      share_token: typeof raw.share_token === "string" ? raw.share_token : null,
+      _contentLoaded: true,
+    };
+  };
+
+  const escapeHtml = (text: string) =>
+    text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+  const extFromName = (name: string) => {
+    const idx = name.lastIndexOf(".");
+    return idx >= 0 ? name.slice(idx).toLowerCase() : "";
+  };
+
+  const isCodeExt = (ext: string) =>
+    [".js", ".ts", ".jsx", ".tsx", ".py", ".java", ".go", ".rs", ".cpp", ".c", ".cs", ".sql", ".sh", ".css", ".yaml", ".yml", ".json", ".xml", ".php", ".rb", ".swift", ".kt"].includes(ext);
+
+  const fileIdFromRelPath = (relPath: string) => `file:${encodeURIComponent(relPath)}`;
+
+  const parseNonJsonFile = async (entryPath: string, relDir: string, fileName: string): Promise<Note | null> => {
+    const relPath = relDir ? `${relDir}/${fileName}` : fileName;
+    const id = fileIdFromRelPath(relPath);
+    const now = new Date().toISOString();
+    const ext = extFromName(fileName);
+    const title = fileName.replace(/\.[^/.]+$/, "") || fileName;
+    try {
+      const text = await tauriFs!.readTextFile(entryPath);
+      let content = "";
+      if (ext === ".md" || ext === ".markdown") {
+        try {
+          const { marked } = await import("marked");
+          content = await marked(text);
+        } catch {
+          content = `<pre><code>${escapeHtml(text)}</code></pre>`;
+        }
+      } else if (ext === ".html" || ext === ".htm") {
+        const bodyMatch = text.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+        content = bodyMatch ? bodyMatch[1] : text;
+      } else if (isCodeExt(ext)) {
+        const language = ext.replace(".", "") || "text";
+        content = `<pre><code class="language-${language}">${escapeHtml(text)}</code></pre>`;
+      } else {
+        content = text
+          .split(/\r?\n/)
+          .map((line) => `<p>${line ? escapeHtml(line) : "<br>"}</p>`)
+          .join("");
+      }
+      return {
+        id,
+        title,
+        content,
+        folder_id: relDir ? folderIdFromRelDir(relDir) : null,
+        created_at: now,
+        updated_at: now,
+        deleted_at: null,
+        is_pinned: false,
+        share_token: null,
+        _contentLoaded: true,
+      };
+    } catch {
+      return null;
+    }
+  };
+
   for (const entry of entries) {
     const entryPath = `${currentDir}/${entry.name}`;
 
@@ -139,16 +248,21 @@ async function tauriReadAllNotesRecursive(basePath: string, currentDir: string):
       continue;
     }
 
-    if (entry.isFile && entry.name?.endsWith(".json")) {
-      const content = await tauriFs!.readTextFile(entryPath);
-      const note = JSON.parse(content) as Note;
-
-      // Always override folder_id based on the filesystem directory path,
-      // so existing notes under nested folders become visible in the UI.
+    if (entry.isFile && entry.name) {
       const relDir = currentDir === basePath ? "" : currentDir.slice(basePath.length + 1);
-      note.folder_id = relDir ? folderIdFromRelDir(relDir) : null;
-
-      notes.push(note);
+      if (entry.name.endsWith(".json")) {
+        try {
+          const content = await tauriFs!.readTextFile(entryPath);
+          const fallbackId = (entry.name || "").replace(/\.json$/i, "");
+          const normalized = normalizeLegacyNote(JSON.parse(content), fallbackId, relDir);
+          if (normalized) notes.push(normalized);
+        } catch {
+          // Ignore malformed file and continue scanning.
+        }
+      } else {
+        const nonJson = await parseNonJsonFile(entryPath, relDir, entry.name);
+        if (nonJson) notes.push(nonJson);
+      }
     }
   }
 
@@ -162,7 +276,14 @@ async function tauriReadAllNotes(localPath: string): Promise<Note[]> {
 
   const base = normalizeFsPath(localPath);
   const notes = await tauriReadAllNotesRecursive(base, base);
-  return notes.sort((a: Note, b: Note) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+  const byId = new Map<string, Note>();
+  for (const note of notes) {
+    const existed = byId.get(note.id);
+    if (!existed || new Date(note.updated_at).getTime() >= new Date(existed.updated_at).getTime()) {
+      byId.set(note.id, note);
+    }
+  }
+  return Array.from(byId.values()).sort((a: Note, b: Note) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 }
 
 async function tauriReadOneByIdRecursive(basePath: string, currentDir: string, noteId: string): Promise<Note | null> {
@@ -179,9 +300,21 @@ async function tauriReadOneByIdRecursive(basePath: string, currentDir: string, n
 
     if (entry.isFile && entry.name === `${noteId}.json`) {
       const content = await tauriFs!.readTextFile(entryPath);
-      const note = JSON.parse(content) as Note;
+      const raw = JSON.parse(content) as any;
       const relDir = currentDir === basePath ? "" : currentDir.slice(basePath.length + 1);
-      note.folder_id = relDir ? folderIdFromRelDir(relDir) : null;
+      const now = new Date().toISOString();
+      const note: Note = {
+        id: (typeof raw.id === "string" && raw.id) || noteId,
+        title: typeof raw.title === "string" && raw.title.trim() ? raw.title : "无标题笔记",
+        content: typeof raw.content === "string" ? raw.content : "",
+        folder_id: relDir ? folderIdFromRelDir(relDir) : null,
+        created_at: typeof raw.created_at === "string" ? raw.created_at : now,
+        updated_at: typeof raw.updated_at === "string" ? raw.updated_at : now,
+        deleted_at: raw.deleted_at ?? null,
+        is_pinned: !!raw.is_pinned,
+        share_token: typeof raw.share_token === "string" ? raw.share_token : null,
+        _contentLoaded: true,
+      };
       return note;
     }
   }
@@ -194,6 +327,12 @@ async function tauriDeleteNote(localPath: string, noteId: string) {
   await loadTauriPlugins();
   if (!tauriFs) return;
   const base = normalizeFsPath(localPath);
+
+  if (isFileNoteId(noteId)) {
+    const relPath = decodeURIComponent(noteId.slice(FILE_NOTE_PREFIX.length));
+    await tauriFs.remove(`${base}/${relPath}`);
+    return;
+  }
 
   // Delete in the root first (fast path).
   try {
@@ -269,8 +408,20 @@ export const localNotesStorage = {
       // Fast path: try root.
       try {
         const content = await tauriFs.readTextFile(`${base}/${noteId}.json`);
-        const note = JSON.parse(content) as Note;
-        note.folder_id = null;
+        const raw = JSON.parse(content) as any;
+        const now = new Date().toISOString();
+        const note: Note = {
+          id: (typeof raw.id === "string" && raw.id) || noteId,
+          title: typeof raw.title === "string" && raw.title.trim() ? raw.title : "无标题笔记",
+          content: typeof raw.content === "string" ? raw.content : "",
+          folder_id: null,
+          created_at: typeof raw.created_at === "string" ? raw.created_at : now,
+          updated_at: typeof raw.updated_at === "string" ? raw.updated_at : now,
+          deleted_at: raw.deleted_at ?? null,
+          is_pinned: !!raw.is_pinned,
+          share_token: typeof raw.share_token === "string" ? raw.share_token : null,
+          _contentLoaded: true,
+        };
         return note;
       } catch {}
 

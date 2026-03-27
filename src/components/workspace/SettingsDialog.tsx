@@ -15,12 +15,21 @@ import DataMigration from "./DataMigration";
 
 const PAGE_FONT_MIN = 12;
 const PAGE_FONT_MAX = 24;
+const CODE_FONT_MIN = 10;
+const CODE_FONT_MAX = 24;
 
 const PAGE_FONT_PRESETS = [
   { label: "小", value: PAGE_FONT_MIN },
   { label: "默认", value: 15 },
   { label: "大", value: 18 },
   { label: "特大", value: PAGE_FONT_MAX },
+];
+
+const CODE_FONT_PRESETS = [
+  { label: "小", value: 12 },
+  { label: "默认", value: 13 },
+  { label: "大", value: 16 },
+  { label: "特大", value: 20 },
 ];
 
 interface SettingsDialogProps {
@@ -39,6 +48,14 @@ const SettingsDialog = ({
   onMigrationComplete,
 }: SettingsDialogProps) => {
   const isDesktop = isTauri();
+  const [codeFontSize, setCodeFontSizeState] = useState(() => parseInt(localStorage.getItem("codeFontSize") || "13", 10));
+
+  const setCodeFontSize = (size: number) => {
+    const next = Math.max(CODE_FONT_MIN, Math.min(CODE_FONT_MAX, size));
+    setCodeFontSizeState(next);
+    localStorage.setItem("codeFontSize", String(next));
+    window.dispatchEvent(new CustomEvent("code-font-size-change", { detail: next }));
+  };
 
   const handleModeChange = async (mode: "cloud" | "local") => {
     // On Tauri, switching to local mode auto-prompts for directory if none set
@@ -157,6 +174,26 @@ const SettingsDialog = ({
               {PAGE_FONT_PRESETS.map((s) => (
                 <button key={s.value} onClick={() => onPageFontSizeChange(s.value)}
                   className={`flex-1 py-1.5 text-xs rounded-md transition-colors ${pageFontSize === s.value ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-accent text-foreground"}`}
+                >{s.label}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Code font size */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-foreground">代码字体大小</label>
+              <span className="text-xs text-muted-foreground">{codeFontSize}px</span>
+            </div>
+            <Slider value={[codeFontSize]} onValueChange={(val) => setCodeFontSize(val[0])} min={CODE_FONT_MIN} max={CODE_FONT_MAX} step={1} />
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>{CODE_FONT_MIN}px</span>
+              <span>{CODE_FONT_MAX}px</span>
+            </div>
+            <div className="flex gap-1.5">
+              {CODE_FONT_PRESETS.map((s) => (
+                <button key={s.value} onClick={() => setCodeFontSize(s.value)}
+                  className={`flex-1 py-1.5 text-xs rounded-md transition-colors ${codeFontSize === s.value ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-accent text-foreground"}`}
                 >{s.label}</button>
               ))}
             </div>

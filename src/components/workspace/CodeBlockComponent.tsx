@@ -9,6 +9,7 @@ const CodeBlockComponent = ({ node, updateAttributes, extension }: NodeViewProps
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
   const [detectedLang, setDetectedLang] = useState("");
+  const [codeFontSize, setCodeFontSize] = useState(() => parseInt(localStorage.getItem("codeFontSize") || "13", 10));
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const language = node.attrs.language || "";
   const effectiveLang = language || detectedLang;
@@ -23,6 +24,19 @@ const CodeBlockComponent = ({ node, updateAttributes, extension }: NodeViewProps
       return () => clearTimeout(timer);
     }
   }, [language, node.textContent]);
+
+  useEffect(() => {
+    const listener = (event: Event) => {
+      const customEvent = event as CustomEvent<number>;
+      if (typeof customEvent.detail === "number") {
+        setCodeFontSize(customEvent.detail);
+      } else {
+        setCodeFontSize(parseInt(localStorage.getItem("codeFontSize") || "13", 10));
+      }
+    };
+    window.addEventListener("code-font-size-change", listener as EventListener);
+    return () => window.removeEventListener("code-font-size-change", listener as EventListener);
+  }, []);
 
   const handleCopy = () => {
     const text = node.textContent;
@@ -94,7 +108,10 @@ const CodeBlockComponent = ({ node, updateAttributes, extension }: NodeViewProps
       </div>
 
       {/* Code content */}
-      <pre className={`!rounded-t-none !mt-0 ${result ? "!rounded-b-none !mb-0" : ""}`}>
+      <pre
+        className={`!rounded-t-none !mt-0 ${result ? "!rounded-b-none !mb-0" : ""}`}
+        style={{ fontSize: `${codeFontSize}px` }}
+      >
         <NodeViewContent as={"code" as any} />
       </pre>
 

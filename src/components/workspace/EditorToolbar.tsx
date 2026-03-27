@@ -4,14 +4,23 @@ import {
   List, ListOrdered, CheckSquare, Link, Quote, Code, Minus,
   Palette, Highlighter, Image as ImageIcon, Undo2, Redo2,
   CodeSquare, Type, AArrowUp, AArrowDown, Table as TableIcon,
+  Paintbrush, SlidersHorizontal,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface EditorToolbarProps {
   editor: Editor | null;
   onInsertImage?: () => void;
+  formatPainterActive?: boolean;
+  onToggleFormatPainter?: () => void;
+  onSetOrderedListStyle?: (
+    listType: "1" | "a" | "A" | "i" | "I",
+    start: number,
+    numberingStyle?: "default" | "cjk" | "outline-decimal"
+  ) => void;
 }
 
 const FONT_COLORS = [
@@ -74,6 +83,20 @@ function getCurrentFontSize(editor: Editor): number {
   return DEFAULT_SIZE;
 }
 
+function applyFontSize(editor: Editor, fontSize: number | null) {
+  const chain = editor.chain().focus() as any;
+  if (fontSize === null) {
+    chain.unsetFontSize();
+  } else {
+    chain.setFontSize(`${fontSize}px`);
+  }
+  // Persist list marker size with listItem attributes so reload keeps consistency.
+  if (editor.isActive("orderedList")) {
+    chain.updateAttributes("listItem", { fontSize: fontSize ? `${fontSize}px` : null });
+  }
+  chain.run();
+}
+
 function stepFontSize(editor: Editor, direction: "up" | "down") {
   const current = getCurrentFontSize(editor);
   let targetIndex: number;
@@ -87,14 +110,18 @@ function stepFontSize(editor: Editor, direction: "up" | "down") {
   }
   const newSize = FONT_SIZES[targetIndex];
   if (newSize === DEFAULT_SIZE) {
-    (editor.chain().focus() as any).unsetFontSize().run();
+    applyFontSize(editor, null);
   } else {
-    (editor.chain().focus() as any).setFontSize(`${newSize}px`).run();
+    applyFontSize(editor, newSize);
   }
 }
 
-const EditorToolbar = ({ editor, onInsertImage }: EditorToolbarProps) => {
+const EditorToolbar = ({ editor, onInsertImage, formatPainterActive = false, onToggleFormatPainter, onSetOrderedListStyle }: EditorToolbarProps) => {
   const [currentSize, setCurrentSize] = useState(DEFAULT_SIZE);
+  const [numberingDialogOpen, setNumberingDialogOpen] = useState(false);
+  const [numberingType, setNumberingType] = useState<"1" | "a" | "A" | "i" | "I">("1");
+  const [numberingStyle, setNumberingStyle] = useState<"default" | "cjk" | "outline-decimal">("default");
+  const [numberingStart, setNumberingStart] = useState(1);
 
   // Update current font size on selection/transaction change
   useEffect(() => {
@@ -135,6 +162,19 @@ const EditorToolbar = ({ editor, onInsertImage }: EditorToolbarProps) => {
     }
   };
 
+  const openNumberingDialog = () => {
+    const attrs = (editor.getAttributes("orderedList") || {}) as any;
+    setNumberingType((attrs.type as "1" | "a" | "A" | "i" | "I") || "1");
+    setNumberingStyle((attrs.numberingStyle as "default" | "cjk" | "outline-decimal") || "default");
+    setNumberingStart(Math.max(1, parseInt(String(attrs.start ?? 1), 10) || 1));
+    setNumberingDialogOpen(true);
+  };
+
+  const applyNumbering = () => {
+    onSetOrderedListStyle?.(numberingType, numberingStart, numberingStyle);
+    setNumberingDialogOpen(false);
+  };
+
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex items-center gap-0.5 px-6 py-1.5 border-b border-border bg-muted/30 flex-wrap">
@@ -165,7 +205,7 @@ const EditorToolbar = ({ editor, onInsertImage }: EditorToolbarProps) => {
                 <p className="text-xs text-muted-foreground mb-1.5 font-medium">文字大小</p>
                 <div className="flex flex-col gap-0.5">
                   <button
-                    onClick={() => { (editor.chain().focus() as any).unsetFontSize().run(); }}
+                    onClick={() => { applyFontSize(editor, null); }}
                     className={`px-3 py-1 text-xs rounded hover:bg-accent text-left ${currentSize === DEFAULT_SIZE ? "bg-accent font-medium" : ""}`}
                   >
                     默认 (16px)
@@ -173,7 +213,7 @@ const EditorToolbar = ({ editor, onInsertImage }: EditorToolbarProps) => {
                   {FONT_SIZES.filter(s => s !== DEFAULT_SIZE).map((s) => (
                     <button
                       key={s}
-                      onClick={() => (editor.chain().focus() as any).setFontSize(`${s}px`).run()}
+                      onClick={() => applyFontSize(editor, s)}
                       className={`px-3 py-1 text-xs rounded hover:bg-accent text-left ${currentSize === s ? "bg-accent font-medium" : ""}`}
                     >
                       {s}px
@@ -222,6 +262,9 @@ const EditorToolbar = ({ editor, onInsertImage }: EditorToolbarProps) => {
         <ToolbarBtn onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive("orderedList")} tooltip="有序列表">
           <ListOrdered className="w-3.5 h-3.5" />
         </ToolbarBtn>
+        <ToolbarBtn onClick={openNumberingDialog} tooltip="编号设置">
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+        </ToolbarBtn>
         <ToolbarBtn onClick={() => editor.chain().focus().toggleTaskList().run()} active={editor.isActive("taskList")} tooltip="待办事项">
           <CheckSquare className="w-3.5 h-3.5" />
         </ToolbarBtn>
@@ -246,6 +289,11 @@ const EditorToolbar = ({ editor, onInsertImage }: EditorToolbarProps) => {
         <ToolbarBtn onClick={setLink} active={editor.isActive("link")} tooltip="链接">
           <Link className="w-3.5 h-3.5" />
         </ToolbarBtn>
+        {onToggleFormatPainter && (
+          <ToolbarBtn onClick={onToggleFormatPainter} active={formatPainterActive} tooltip="格式刷（先复制再涂抹）">
+            <Paintbrush className="w-3.5 h-3.5" />
+          </ToolbarBtn>
+        )}
 
         {onInsertImage && (
           <ToolbarBtn onClick={onInsertImage} tooltip="插入图片">
@@ -366,6 +414,73 @@ const EditorToolbar = ({ editor, onInsertImage }: EditorToolbarProps) => {
           </PopoverContent>
         </Popover>
       </div>
+      <Dialog open={numberingDialogOpen} onOpenChange={setNumberingDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>编号设置</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-sm font-medium">编号样式</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: "1, 2, 3", type: "1" as const, style: "default" as const },
+                  { label: "一, 二, 三", type: "1" as const, style: "cjk" as const },
+                  { label: "A, B, C", type: "A" as const, style: "default" as const },
+                  { label: "a, b, c", type: "a" as const, style: "default" as const },
+                  { label: "I, II, III", type: "I" as const, style: "default" as const },
+                  { label: "i, ii, iii", type: "i" as const, style: "default" as const },
+                  { label: "1.1 / 1.1.1", type: "1" as const, style: "outline-decimal" as const },
+                ].map((item) => {
+                  const active = numberingType === item.type && numberingStyle === item.style;
+                  return (
+                    <button
+                      key={`${item.type}-${item.style}-${item.label}`}
+                      onClick={() => {
+                        setNumberingType(item.type);
+                        setNumberingStyle(item.style);
+                      }}
+                      className={`px-3 py-2 text-xs rounded-md border text-left transition-colors ${
+                        active ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-accent"
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">起始编号</p>
+              <input
+                type="number"
+                min={1}
+                value={numberingStart}
+                onChange={(e) => {
+                  const next = parseInt(e.target.value, 10);
+                  setNumberingStart(Number.isNaN(next) ? 1 : Math.max(1, next));
+                }}
+                className="w-full px-3 py-2 rounded-md border border-border bg-background text-sm"
+              />
+              <p className="text-[11px] text-muted-foreground">多级编号模式支持到三级：`1` / `1.1` / `1.1.1`</p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setNumberingDialogOpen(false)}
+                className="px-3 py-1.5 text-xs rounded-md bg-muted hover:bg-accent transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={applyNumbering}
+                className="px-3 py-1.5 text-xs rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+              >
+                应用
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </TooltipProvider>
   );
 };

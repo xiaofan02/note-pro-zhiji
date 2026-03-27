@@ -18,11 +18,17 @@ export const useTauriUpdate = (): TauriUpdateState => {
   const [updaterMod, setUpdaterMod] = useState<any>(null);
   const [updateObj, setUpdateObj] = useState<any>(null);
 
+  const loadUpdater = useCallback(async () => {
+    if (updaterMod) return updaterMod;
+    const mod = await import("@tauri-apps/plugin-updater");
+    setUpdaterMod(mod);
+    return mod;
+  }, [updaterMod]);
+
   const checkForUpdates = useCallback(async (): Promise<boolean> => {
     if (!isTauri()) return false;
     try {
-      const mod = await import("@tauri-apps/plugin-updater");
-      setUpdaterMod(mod);
+      const mod = await loadUpdater();
       const update = await mod.check();
       if (!update) {
         setUpdateObj(null);
@@ -41,13 +47,20 @@ export const useTauriUpdate = (): TauriUpdateState => {
       setVersion(null);
       return false;
     }
-  }, []);
+  }, [loadUpdater]);
 
   useEffect(() => {
     if (!isTauri()) return;
+    // Preload updater plugin ASAP so user-triggered checks return faster.
+    void loadUpdater().catch(() => {});
     // Initial check on mount.
     void checkForUpdates();
-  }, [checkForUpdates]);
+    // Background polling every 2h to reduce manual check latency.
+    const timer = setInterval(() => {
+      void checkForUpdates();
+    }, 2 * 60 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, [checkForUpdates, loadUpdater]);
 
   const installUpdate = useCallback(async () => {
     if (!updateObj) return;

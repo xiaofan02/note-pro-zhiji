@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Note } from "@/hooks/useNotes";
 import { Tag } from "@/hooks/useTags";
-import { Save, Sparkles, FileText, Loader2, Mic, Download, Upload, Share2, Link2, Pin, PinOff, Check, Copy, X } from "lucide-react";
+import { Save, Sparkles, FileText, Loader2, Mic, Download, Upload, Share2, Link2, Pin, PinOff, Check, Copy, X, ListTree, ChevronDown, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
@@ -39,6 +39,8 @@ import {
   DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Extension } from "@tiptap/core";
+import { OrderedListStyle } from "@/lib/orderedListStyleExtension";
+import { ListItemFontSize } from "@/lib/listItemFontSizeExtension";
 
 const lowlight = createLowlight(common);
 
@@ -107,6 +109,13 @@ interface AiResult {
   selectionTo?: number;
 }
 
+interface OutlineItem {
+  id: string;
+  text: string;
+  level: 1 | 2 | 3;
+  pos: number;
+}
+
 interface NoteEditorProps {
   note: Note;
   onUpdate: (id: string, updates: { title?: string; content?: string }) => Promise<void>;
@@ -138,6 +147,11 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
   const [searchQuery, setSearchQuery] = useState("");
   const [searchMatchIndex, setSearchMatchIndex] = useState(0);
   const [searchMatches, setSearchMatches] = useState<number[]>([]);
+  const [outlineOpen, setOutlineOpen] = useState(false);
+  const [outlineItems, setOutlineItems] = useState<OutlineItem[]>([]);
+  const [activeOutlineId, setActiveOutlineId] = useState<string | null>(null);
+  const [outlineCollapseLevel2, setOutlineCollapseLevel2] = useState(false);
+  const [outlineCollapseLevel3, setOutlineCollapseLevel3] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const skipNextUpdate = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -155,6 +169,20 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
       return next;
     });
   };
+  useEffect(() => {
+    const listener = (event: Event) => {
+      const customEvent = event as CustomEvent<number>;
+      if (typeof customEvent.detail === "number") {
+        setCodeFontSize(customEvent.detail);
+      }
+    };
+    window.addEventListener("code-font-size-change", listener as EventListener);
+    return () => window.removeEventListener("code-font-size-change", listener as EventListener);
+  }, []);
+
+  // Format painter (inline style only)
+  const [formatPainterActive, setFormatPainterActive] = useState(false);
+  const [paintFormat, setPaintFormat] = useState<any>(null);
 
   // ─── Note link picker ──────────────────────────────────────────
   const [linkPickerOpen, setLinkPickerOpen] = useState(false);
@@ -176,7 +204,8 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ heading: { levels: [1, 2, 3] }, codeBlock: false }),
+      StarterKit.configure({ heading: { levels: [1, 2, 3] }, codeBlock: false, orderedList: false }),
+      OrderedListStyle,
       CodeBlockLowlight.extend({
         addNodeView() { return ReactNodeViewRenderer(CodeBlockComponent); },
       }).configure({ lowlight }),
@@ -186,6 +215,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
       TextStyle, Color, FontSize,
       TaskList, TaskItem.configure({ nested: true }),
       Placeholder.configure({ placeholder: "开始写点什么吧..." }),
+      ListItemFontSize,
       Table.configure({ resizable: true }),
       TableRow, TableHeader, TableCell,
       NoteLinkExtension.configure({
@@ -201,7 +231,75 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
     content: note.content || "",
   });
 
+  const refreshOutline = useCallback(() => {
+    if (!editor) return;
+    const items: OutlineItem[] = [];
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === "heading") {
+        const level = (node.attrs.level || 1) as 1 | 2 | 3;
+        const text = node.textContent.trim() || `标题 ${items.length + 1}`;
+        items.push({ id: `h-${pos}`, text, level, pos });
+      }
+      return true;
+    });
+    setOutlineItems(items);
+
+    const selectionPos = editor.state.selection.from;
+    const current =
+      items
+        .filter((i) => i.pos <= selectionPos)
+        .sort((a, b) => b.pos - a.pos)[0] || null;
+    setActiveOutlineId(current?.id || null);
+  }, [editor]);
+
   const titleInputRef = useRef<HTMLInputElement>(null);
+
+  const getCurrentInlineFormat = useCallback(() => {
+    if (!editor) return null;
+    const textStyleAttrs = editor.getAttributes("textStyle") || {};
+    const linkAttrs = editor.getAttributes("link") || {};
+    const highlightAttrs = editor.getAttributes("highlight") || {};
+    return {
+      bold: editor.isActive("bold"),
+      italic: editor.isActive("italic"),
+      strike: editor.isActive("strike"),
+      code: editor.isActive("code"),
+      color: textStyleAttrs.color || null,
+      fontSize: textStyleAttrs.fontSize || null,
+      highlightColor: highlightAttrs.color || null,
+      link: linkAttrs.href || null,
+    };
+  }, [editor]);
+
+  const applyPaintFormat = useCallback(() => {
+    if (!editor || !paintFormat) return;
+    const chain = editor.chain().focus();
+    paintFormat.bold ? chain.setBold() : chain.unsetBold();
+    paintFormat.italic ? chain.setItalic() : chain.unsetItalic();
+    paintFormat.strike ? chain.setStrike() : chain.unsetStrike();
+    paintFormat.code ? chain.setCode() : chain.unsetCode();
+    if (paintFormat.color) {
+      chain.setColor(paintFormat.color);
+    } else {
+      chain.unsetColor();
+    }
+    if (paintFormat.fontSize) {
+      (chain as any).setFontSize(paintFormat.fontSize);
+    } else {
+      (chain as any).unsetFontSize();
+    }
+    if (paintFormat.highlightColor) {
+      chain.setHighlight({ color: paintFormat.highlightColor });
+    } else {
+      chain.unsetHighlight();
+    }
+    if (paintFormat.link) {
+      chain.extendMarkRange("link").setLink({ href: paintFormat.link });
+    } else {
+      chain.unsetLink();
+    }
+    chain.run();
+  }, [editor, paintFormat]);
 
   useEffect(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -216,7 +314,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
     if (isEmpty) {
       setTimeout(() => titleInputRef.current?.focus(), 50);
     }
-  }, [note.id]);
+  }, [note.id, editor, note.content]);
 
   const titleRef = useRef(title);
   useEffect(() => { titleRef.current = title; }, [title]);
@@ -226,10 +324,36 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
     const handler = () => {
       if (skipNextUpdate.current) { skipNextUpdate.current = false; return; }
       debouncedSave(titleRef.current, editor.getHTML());
+      refreshOutline();
     };
+    const selectionHandler = () => refreshOutline();
+    refreshOutline();
     editor.on("update", handler);
-    return () => { editor.off("update", handler); };
-  }, [editor, debouncedSave]);
+    editor.on("selectionUpdate", selectionHandler);
+    return () => {
+      editor.off("update", handler);
+      editor.off("selectionUpdate", selectionHandler);
+    };
+  }, [editor, debouncedSave, refreshOutline]);
+
+  useEffect(() => {
+    if (!editor || !formatPainterActive) return;
+    const handleMouseUp = () => {
+      setTimeout(() => {
+        const { from, to } = editor.state.selection;
+        if (from === to) return;
+        applyPaintFormat();
+        setFormatPainterActive(false);
+      }, 0);
+    };
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => document.removeEventListener("mouseup", handleMouseUp);
+  }, [editor, formatPainterActive, applyPaintFormat]);
+
+  useEffect(() => {
+    document.body.classList.toggle("format-painter-cursor", formatPainterActive);
+    return () => document.body.classList.remove("format-painter-cursor");
+  }, [formatPainterActive]);
 
   const { isListening, isSupported: voiceSupported, start: startListening, stop: stopListening } = useSpeechRecognition({
     onResult: (text) => { if (editor) editor.chain().focus().insertContent(text).run(); },
@@ -697,6 +821,15 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
           </span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+          <button
+            onClick={() => setOutlineOpen((v) => !v)}
+            className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+              outlineOpen ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground hover:bg-accent/80"
+            }`}
+          >
+            <ListTree className="w-3 h-3" />
+            导航
+          </button>
           {onTogglePin && (
             <button onClick={() => onTogglePin(note.id)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/80 transition-colors">
               {note.is_pinned ? <PinOff className="w-3 h-3" /> : <Pin className="w-3 h-3" />}
@@ -865,9 +998,82 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
         />
       )}
 
-      <EditorToolbar editor={isReadMode ? null : editor} onInsertImage={() => fileInputRef.current?.click()} />
+      <EditorToolbar
+        editor={isReadMode ? null : editor}
+        onInsertImage={() => fileInputRef.current?.click()}
+        formatPainterActive={formatPainterActive}
+        onToggleFormatPainter={() => {
+          if (!editor) return;
+          if (!formatPainterActive) {
+            setPaintFormat(getCurrentInlineFormat());
+            setFormatPainterActive(true);
+            return;
+          }
+          setFormatPainterActive(false);
+        }}
+        onSetOrderedListStyle={(listType, start, numberingStyle = "default") => {
+          if (!editor) return;
+          if (!editor.isActive("orderedList")) editor.chain().focus().toggleOrderedList().run();
+          (editor.chain().focus() as any).updateAttributes("orderedList", {
+            type: listType,
+            start,
+            numberingStyle,
+          }).run();
+        }}
+      />
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 relative" style={{ fontSize: `${pageFontSize}px` }}>
+      <div className="flex-1 flex min-h-0 relative" style={{ fontSize: `${pageFontSize}px` }}>
+        {outlineOpen && (
+          <div className="w-64 h-full border-r border-border bg-background p-2 overflow-y-auto shrink-0">
+            <div className="flex items-center justify-between px-2 py-1.5 border-b border-border">
+              <span className="text-xs font-medium text-foreground">文档导航</span>
+              <button
+                onClick={() => setOutlineOpen(false)}
+                className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                关闭
+              </button>
+            </div>
+            <div className="flex items-center gap-2 px-2 py-1.5 border-b border-border">
+              <button
+                onClick={() => setOutlineCollapseLevel2((v) => !v)}
+                className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {outlineCollapseLevel2 ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />} 二级
+              </button>
+              <button
+                onClick={() => setOutlineCollapseLevel3((v) => !v)}
+                className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {outlineCollapseLevel3 ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />} 三级
+              </button>
+            </div>
+            <div className="pt-1">
+              {outlineItems.length === 0 ? (
+                <p className="text-xs text-muted-foreground px-2 py-2">暂无标题（H1/H2/H3）</p>
+              ) : (
+                outlineItems
+                  .filter((item) => !(outlineCollapseLevel2 && item.level === 2) && !(outlineCollapseLevel3 && item.level === 3))
+                  .map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      editor?.chain().focus().setTextSelection(item.pos + 1).scrollIntoView().run();
+                    }}
+                    className={`w-full text-left px-2 py-1.5 rounded text-xs transition-colors ${
+                      activeOutlineId === item.id ? "bg-primary/15 text-primary" : "hover:bg-accent text-foreground"
+                    }`}
+                    style={{ paddingLeft: `${8 + (item.level - 1) * 14}px` }}
+                    title={item.text}
+                  >
+                    <span className="line-clamp-1">{item.text}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 relative">
         <input type="text" value={title} onChange={(e) => handleTitleChange(e.target.value)}
           ref={titleInputRef}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); editor?.commands.focus("start"); } }}
@@ -892,6 +1098,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
             isLoading={!!aiLoading}
           />
         )}
+        </div>
       </div>
 
       {/* Word count bar */}
