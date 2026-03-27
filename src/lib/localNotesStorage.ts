@@ -275,7 +275,22 @@ async function tauriReadAllNotes(localPath: string): Promise<Note[]> {
   if (!tauriFs) return [];
 
   const base = normalizeFsPath(localPath);
-  const notes = await tauriReadAllNotesRecursive(base, base);
+  let notes: Note[] = [];
+  try {
+    notes = await tauriReadAllNotesRecursive(base, base);
+  } catch (e: any) {
+    const msg = String(e?.message || e || "");
+    const missingDir =
+      /ENOENT|NotFound|cannot find|does not exist|path not found/i.test(msg);
+    if (missingDir) {
+      try {
+        await tauriFs.mkdir(base, { recursive: true });
+        notes = [];
+      } catch {}
+    } else {
+      throw e;
+    }
+  }
   const byId = new Map<string, Note>();
   for (const note of notes) {
     const existed = byId.get(note.id);
@@ -287,7 +302,12 @@ async function tauriReadAllNotes(localPath: string): Promise<Note[]> {
 }
 
 async function tauriReadOneByIdRecursive(basePath: string, currentDir: string, noteId: string): Promise<Note | null> {
-  const entries = await tauriFs!.readDir(currentDir);
+  let entries: Awaited<ReturnType<NonNullable<typeof tauriFs>["readDir"]>>;
+  try {
+    entries = await tauriFs!.readDir(currentDir);
+  } catch {
+    return null;
+  }
 
   for (const entry of entries) {
     const entryPath = `${currentDir}/${entry.name}`;
@@ -342,7 +362,12 @@ async function tauriDeleteNote(localPath: string, noteId: string) {
 
   // Fallback: delete recursively for older notes stored in subfolders.
   async function delRec(dir: string): Promise<boolean> {
-    const entries = await tauriFs!.readDir(dir);
+    let entries: Awaited<ReturnType<NonNullable<typeof tauriFs>["readDir"]>>;
+    try {
+      entries = await tauriFs!.readDir(dir);
+    } catch {
+      return false;
+    }
     for (const entry of entries) {
       const entryPath = `${dir}/${entry.name}`;
       if (entry.isDirectory) {
