@@ -148,6 +148,20 @@ async function tauriWriteNote(localPath: string, note: Note & { user_id?: string
 async function tauriReadAllNotesRecursive(basePath: string, currentDir: string): Promise<Note[]> {
   const entries = await tauriFs!.readDir(currentDir);
   const notes: Note[] = [];
+  const sepPattern = /[\\/]/;
+  const getEntryName = (entry: any): string => {
+    if (typeof entry?.name === "string" && entry.name) return entry.name;
+    if (typeof entry?.path === "string" && entry.path) {
+      const parts = entry.path.split(sepPattern).filter(Boolean);
+      return parts[parts.length - 1] || "";
+    }
+    return "";
+  };
+  const getEntryPath = (dir: string, entry: any): string => {
+    if (typeof entry?.path === "string" && entry.path) return normalizeFsPath(entry.path);
+    const name = getEntryName(entry);
+    return `${dir}/${name}`;
+  };
 
   const toIsoDate = (value: unknown, fallback: string): string => {
     if (typeof value !== "string" || !value) return fallback;
@@ -241,26 +255,28 @@ async function tauriReadAllNotesRecursive(basePath: string, currentDir: string):
   };
 
   for (const entry of entries) {
-    const entryPath = `${currentDir}/${entry.name}`;
+    const entryName = getEntryName(entry);
+    const entryPath = getEntryPath(currentDir, entry);
+    if (!entryName || !entryPath) continue;
 
     if (entry.isDirectory) {
       notes.push(...(await tauriReadAllNotesRecursive(basePath, entryPath)));
       continue;
     }
 
-    if (entry.isFile && entry.name) {
+    if (entry.isFile) {
       const relDir = currentDir === basePath ? "" : currentDir.slice(basePath.length + 1);
-      if (entry.name.endsWith(".json")) {
+      if (entryName.endsWith(".json")) {
         try {
           const content = await tauriFs!.readTextFile(entryPath);
-          const fallbackId = (entry.name || "").replace(/\.json$/i, "");
+          const fallbackId = (entryName || "").replace(/\.json$/i, "");
           const normalized = normalizeLegacyNote(JSON.parse(content), fallbackId, relDir);
           if (normalized) notes.push(normalized);
         } catch {
           // Ignore malformed file and continue scanning.
         }
       } else {
-        const nonJson = await parseNonJsonFile(entryPath, relDir, entry.name);
+        const nonJson = await parseNonJsonFile(entryPath, relDir, entryName);
         if (nonJson) notes.push(nonJson);
       }
     }
@@ -309,8 +325,25 @@ async function tauriReadOneByIdRecursive(basePath: string, currentDir: string, n
     return null;
   }
 
+  const sepPattern = /[\\/]/;
+  const getEntryName = (entry: any): string => {
+    if (typeof entry?.name === "string" && entry.name) return entry.name;
+    if (typeof entry?.path === "string" && entry.path) {
+      const parts = entry.path.split(sepPattern).filter(Boolean);
+      return parts[parts.length - 1] || "";
+    }
+    return "";
+  };
+  const getEntryPath = (dir: string, entry: any): string => {
+    if (typeof entry?.path === "string" && entry.path) return normalizeFsPath(entry.path);
+    const name = getEntryName(entry);
+    return `${dir}/${name}`;
+  };
+
   for (const entry of entries) {
-    const entryPath = `${currentDir}/${entry.name}`;
+    const entryName = getEntryName(entry);
+    const entryPath = getEntryPath(currentDir, entry);
+    if (!entryName || !entryPath) continue;
 
     if (entry.isDirectory) {
       const found = await tauriReadOneByIdRecursive(basePath, entryPath, noteId);
@@ -318,7 +351,7 @@ async function tauriReadOneByIdRecursive(basePath: string, currentDir: string, n
       continue;
     }
 
-    if (entry.isFile && entry.name === `${noteId}.json`) {
+    if (entry.isFile && entryName === `${noteId}.json`) {
       const content = await tauriFs!.readTextFile(entryPath);
       const raw = JSON.parse(content) as any;
       const relDir = currentDir === basePath ? "" : currentDir.slice(basePath.length + 1);
@@ -368,14 +401,30 @@ async function tauriDeleteNote(localPath: string, noteId: string) {
     } catch {
       return false;
     }
+    const sepPattern = /[\\/]/;
+    const getEntryName = (entry: any): string => {
+      if (typeof entry?.name === "string" && entry.name) return entry.name;
+      if (typeof entry?.path === "string" && entry.path) {
+        const parts = entry.path.split(sepPattern).filter(Boolean);
+        return parts[parts.length - 1] || "";
+      }
+      return "";
+    };
+    const getEntryPath = (baseDir: string, entry: any): string => {
+      if (typeof entry?.path === "string" && entry.path) return normalizeFsPath(entry.path);
+      const name = getEntryName(entry);
+      return `${baseDir}/${name}`;
+    };
     for (const entry of entries) {
-      const entryPath = `${dir}/${entry.name}`;
+      const entryName = getEntryName(entry);
+      const entryPath = getEntryPath(dir, entry);
+      if (!entryName || !entryPath) continue;
       if (entry.isDirectory) {
         const ok = await delRec(entryPath);
         if (ok) return true;
         continue;
       }
-      if (entry.isFile && entry.name === `${noteId}.json`) {
+      if (entry.isFile && entryName === `${noteId}.json`) {
         await tauriFs!.remove(entryPath);
         return true;
       }
