@@ -46,6 +46,7 @@ import { Clock, PackageOpen, Zap } from "lucide-react";
 import { useWorkflow } from "@/hooks/useWorkflow";
 import WorkflowPanel from "@/components/workspace/WorkflowPanel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import AppLogo from "@/components/AppLogo";
 
 const Workspace = () => {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -723,8 +724,8 @@ const Workspace = () => {
     return (
       <div className="h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center animate-pulse shadow-sm">
-            <Sparkles className="w-5 h-5 text-primary-foreground" />
+          <div className="animate-pulse glow-primary-sm rounded-xl">
+            <AppLogo size={40} />
           </div>
           <p className="text-sm text-muted-foreground animate-pulse">加载中...</p>
         </div>
@@ -1181,10 +1182,10 @@ const Workspace = () => {
                   <Menu className="w-5 h-5" />
                 </button>
                 <div className="flex items-center gap-2 flex-1">
-                  <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
-                    <Sparkles className="w-3.5 h-3.5 text-primary-foreground" />
+                  <div className="rounded-lg glow-primary-sm overflow-hidden shrink-0">
+                    <AppLogo size={28} />
                   </div>
-                  <span className="text-sm font-bold text-foreground">智记 AI</span>
+                  <span className="text-sm font-bold text-foreground tracking-tight font-sans">智记 AI</span>
                 </div>
               </div>
             )}
@@ -1194,10 +1195,10 @@ const Workspace = () => {
               <SheetContent side="left" className="w-[300px] p-0 flex flex-col">
                 <div className="h-13 border-b border-border flex items-center justify-between px-4 shrink-0">
                   <Link to="/" className="flex items-center gap-2">
-                    <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
-                      <Sparkles className="w-3.5 h-3.5 text-primary-foreground" />
+                    <div className="rounded-lg glow-primary-sm overflow-hidden shrink-0">
+                      <AppLogo size={28} />
                     </div>
-                    <span className="text-sm font-bold text-foreground">智记 AI</span>
+                    <span className="text-sm font-bold text-foreground tracking-tight">智记 AI</span>
                   </Link>
                 </div>
                 {sidebarContent}
@@ -1205,7 +1206,7 @@ const Workspace = () => {
             </Sheet>
 
             {/* Mobile main content */}
-            <main className="flex-1 flex flex-col bg-section-alt w-full">
+            <main className="flex-1 flex flex-col bg-gradient-to-b from-section-alt to-background w-full">
               {activeNote ? (
                 <div className="flex-1 flex flex-col h-screen">
                   {/* Mobile editor top bar */}
@@ -1261,13 +1262,13 @@ const Workspace = () => {
             {/* Desktop sidebar */}
             <aside
               className={cn(
-                "border-r border-border bg-card flex flex-col h-full shrink-0 transition-all duration-300 overflow-hidden",
+                "glass-surface flex flex-col h-full shrink-0 transition-all duration-300 overflow-hidden",
                 sidebarCollapsed ? "w-14" : "w-72"
               )}
             >
               {/* Logo + collapse/expand button */}
               <div className={cn(
-                "h-13 border-b border-border flex items-center shrink-0 transition-all duration-300",
+                "h-13 border-b border-border/60 flex items-center shrink-0 transition-all duration-300",
                 sidebarCollapsed ? "justify-center px-2" : "justify-between px-5"
               )}>
                 {sidebarCollapsed ? (
@@ -1275,9 +1276,9 @@ const Workspace = () => {
                     <TooltipTrigger asChild>
                       <button
                         onClick={() => setSidebarCollapsed(false)}
-                        className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm hover:shadow-md transition-shadow"
+                        className="rounded-xl overflow-hidden glow-primary-sm transition-shadow hover:scale-[1.02] active:scale-[0.98]"
                       >
-                        <Sparkles className="w-4 h-4 text-primary-foreground" />
+                        <AppLogo size={32} />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent side="right" className="text-xs">展开侧边栏</TooltipContent>
@@ -1285,8 +1286,8 @@ const Workspace = () => {
                 ) : (
                   <>
                     <Link to="/" className="flex items-center gap-2.5 group">
-                      <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-                        <Sparkles className="w-4 h-4 text-primary-foreground" />
+                      <div className="rounded-xl overflow-hidden glow-primary-sm transition-transform group-hover:scale-[1.02]">
+                        <AppLogo size={32} />
                       </div>
                       <span className="text-sm font-bold text-foreground tracking-tight">智记 AI</span>
                     </Link>
@@ -1362,7 +1363,7 @@ const Workspace = () => {
             </aside>
 
             {/* Desktop editor area */}
-            <main className="flex-1 flex bg-section-alt min-w-0">
+            <main className="flex-1 flex bg-gradient-to-b from-section-alt to-background min-w-0">
               <div className="flex-1 flex min-w-0">
                 {activeNote ? (
                   contentLoading ? (
@@ -1421,7 +1422,7 @@ const Workspace = () => {
               />
               {/* Workflow Panel */}
               {workflowPanelOpen && (
-                <div className="w-80 border-l border-border bg-card flex flex-col h-full shrink-0 overflow-hidden">
+                <div className="w-80 border-l border-border/60 glass-surface flex flex-col h-full shrink-0 overflow-hidden">
                   <WorkflowPanel
                     workflows={workflows}
                     logs={logs}

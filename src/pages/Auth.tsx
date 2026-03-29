@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Sparkles, Mail, Lock, User, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, User, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import AppLogo from "@/components/AppLogo";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -125,11 +126,11 @@ const Auth = () => {
     <div className="min-h-screen bg-background flex">
       {/* Left decorative panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-gray-900 text-white flex-col justify-between p-12">
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-gray-900" />
+        <div className="flex items-center gap-3">
+          <div className="rounded-xl overflow-hidden shadow-[0_0_28px_-6px_rgba(34,211,238,0.45)]">
+            <AppLogo size={40} />
           </div>
-          <span className="text-xl font-bold">智记 AI</span>
+          <span className="text-xl font-bold tracking-tight">智记 AI</span>
         </div>
         <div className="space-y-6">
           <h2 className="text-4xl font-bold leading-tight">

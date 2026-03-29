@@ -1,3 +1,9 @@
+mod activity_monitor;
+
+use activity_monitor::{
+    activity_get_status, activity_read_log_tail, activity_set_config, load_config, start_monitor,
+    ActivityState,
+};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -11,7 +17,20 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .invoke_handler(tauri::generate_handler![
+            activity_get_status,
+            activity_set_config,
+            activity_read_log_tail,
+        ])
         .setup(|app| {
+            let cfg = load_config(&app.handle());
+            let start_on_boot = cfg.enabled;
+            let state = ActivityState::new(cfg);
+            #[cfg(windows)]
+            if start_on_boot {
+                let _ = start_monitor(&state, &app.handle());
+            }
+            app.manage(state);
             let show = MenuItem::with_id(app, "show", "显示窗口", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &quit])?;

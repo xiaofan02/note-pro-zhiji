@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Lock, Eye, EyeOff } from "lucide-react";
+import { Lock, Eye, EyeOff } from "lucide-react";
+import AppLogo from "@/components/AppLogo";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -65,8 +66,8 @@ const ResetPassword = () => {
       <div className="w-full max-w-md space-y-8">
         <div className="flex justify-center">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-foreground rounded-xl flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-primary-foreground" />
+            <div className="rounded-xl overflow-hidden shadow-[0_0_24px_-8px_hsl(var(--primary)_/_0.45)]">
+              <AppLogo size={40} />
             </div>
             <span className="text-xl font-bold text-foreground">智记 AI</span>
           </div>

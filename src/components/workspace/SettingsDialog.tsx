@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Settings, HardDrive, Cloud, FolderOpen, Info } from "lucide-react";
+import { useState, useRef } from "react";
+import { Settings, HardDrive, Cloud, FolderOpen, Info, Activity } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -12,6 +12,9 @@ import {
   isTauri,
 } from "@/lib/localNotesStorage";
 import DataMigration from "./DataMigration";
+import { Switch } from "@/components/ui/switch";
+import { getActivityStatus, setActivityConfig, type ActivityStatus } from "@/lib/activityMonitor";
+import { useToast } from "@/hooks/use-toast";
 
 const PAGE_FONT_MIN = 12;
 const PAGE_FONT_MAX = 24;
@@ -48,7 +51,12 @@ const SettingsDialog = ({
   onMigrationComplete,
 }: SettingsDialogProps) => {
   const isDesktop = isTauri();
+  const { toast } = useToast();
   const [codeFontSize, setCodeFontSizeState] = useState(() => parseInt(localStorage.getItem("codeFontSize") || "13", 10));
+  const [activityStatus, setActivityStatus] = useState<ActivityStatus | null>(null);
+  const [activityInterval, setActivityInterval] = useState(10);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const activityIntervalDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const setCodeFontSize = (size: number) => {
     const next = Math.max(CODE_FONT_MIN, Math.min(CODE_FONT_MAX, size));
@@ -79,8 +87,20 @@ const SettingsDialog = ({
     }
   };
 
+  const loadActivityStatus = async () => {
+    if (!isDesktop) return;
+    setActivityLoading(true);
+    try {
+      const s = await getActivityStatus();
+      setActivityStatus(s);
+      if (s) setActivityInterval(s.intervalSec);
+    } finally {
+      setActivityLoading(false);
+    }
+  };
+
   return (
-    <Dialog>
+    <Dialog onOpenChange={(open) => { if (open) void loadActivityStatus(); }}>
       <Tooltip>
         <TooltipTrigger asChild>
           <DialogTrigger asChild>
@@ -91,7 +111,7 @@ const SettingsDialog = ({
         </TooltipTrigger>
         <TooltipContent side="right" className="text-xs">设置</TooltipContent>
       </Tooltip>
-      <DialogContent className="sm:max-w-md max-h-[85vh]">
+      <DialogContent className="sm:max-w-lg max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="text-base">设置</DialogTitle>
         </DialogHeader>
@@ -200,6 +220,82 @@ const SettingsDialog = ({
           </div>
 
           <DataMigration storageSettings={storageSettings} onMigrationComplete={onMigrationComplete || (() => {})} />
+
+          {/* Desktop activity log (Windows): Cursor + browsers */}
+          {isDesktop && (
+            <div className="space-y-3 p-3 rounded-lg border border-border bg-muted/20">
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-primary shrink-0" />
+                <span className="text-sm font-medium text-foreground">前台活动记录（实验）</span>
+              </div>
+              {activityLoading && (
+                <p className="text-xs text-muted-foreground">加载中…</p>
+              )}
+              {!activityLoading && activityStatus && !activityStatus.supported && (
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  当前构建仅支持 Windows 前台采样。Mac / Linux 后续可扩展。
+                </p>
+              )}
+              {!activityLoading && activityStatus?.supported && (
+                <>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="space-y-0.5 min-w-0">
+                      <p className="text-xs text-foreground">记录 Cursor 与主流浏览器</p>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        仅采样前台窗口标题与进程名，写入本地 JSONL；单线程、低频率，便于 OpenClaw / Claude 做日报。不含键盘与屏幕录制。
+                      </p>
+                    </div>
+                    <Switch
+                      checked={!!activityStatus?.enabled}
+                      onCheckedChange={async (v) => {
+                        try {
+                          await setActivityConfig(v, activityInterval);
+                          await loadActivityStatus();
+                        } catch (e) {
+                          toast({ title: "无法更新活动记录", description: String(e), variant: "destructive" });
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs text-muted-foreground">采样间隔（秒）</label>
+                      <span className="text-xs tabular-nums">{activityInterval}s</span>
+                    </div>
+                    <Slider
+                      value={[activityInterval]}
+                      min={5}
+                      max={120}
+                      step={5}
+                      disabled={!activityStatus?.enabled}
+                      onValueChange={(val) => {
+                        setActivityInterval(val[0]);
+                        if (!activityStatus?.enabled) return;
+                        if (activityIntervalDebounce.current) clearTimeout(activityIntervalDebounce.current);
+                        activityIntervalDebounce.current = setTimeout(async () => {
+                          activityIntervalDebounce.current = null;
+                          try {
+                            await setActivityConfig(true, val[0]);
+                            await loadActivityStatus();
+                          } catch (e) {
+                            toast({ title: "保存失败", description: String(e), variant: "destructive" });
+                          }
+                        }, 450);
+                      }}
+                    />
+                    <p className="text-[10px] text-muted-foreground/80">
+                      运行中：{activityStatus?.running ? "是" : "否"} · 日志路径见下（可给 OpenClaw 读取）
+                    </p>
+                    {activityStatus?.logPath ? (
+                      <p className="text-[10px] font-mono text-muted-foreground break-all bg-background/80 px-2 py-1.5 rounded border border-border/60">
+                        {activityStatus.logPath}
+                      </p>
+                    ) : null}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
         </ScrollArea>
       </DialogContent>

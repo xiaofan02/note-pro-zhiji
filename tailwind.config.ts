@@ -13,7 +13,7 @@ export default {
       },
     },
     fontFamily: {
-      sans: ['"Noto Sans SC"', 'system-ui', '-apple-system', 'sans-serif'],
+      sans: ['"Plus Jakarta Sans"', '"Noto Sans SC"', 'system-ui', '-apple-system', 'sans-serif'],
     },
     extend: {
       colors: {

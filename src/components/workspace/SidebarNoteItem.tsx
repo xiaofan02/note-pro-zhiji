@@ -94,8 +94,10 @@ const SidebarNoteItem = React.memo(({
       onClick={handleClick}
       onContextMenu={handleContextMenu}
       className={cn(
-        "group flex items-start gap-2.5 p-3 rounded-lg cursor-pointer transition-all duration-150",
-        isActive && !batchMode ? "bg-accent text-accent-foreground shadow-sm" : "hover:bg-muted/60 text-foreground",
+        "group flex items-start gap-2.5 p-3 rounded-xl cursor-pointer transition-all duration-150",
+        isActive && !batchMode
+          ? "bg-accent/90 text-accent-foreground shadow-[0_0_28px_-10px_hsl(var(--primary)/0.45)] ring-1 ring-primary/15"
+          : "hover:bg-muted/60 text-foreground",
         batchMode && isSelected && "bg-primary/10 ring-1 ring-primary/30",
       )}
     >

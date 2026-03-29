@@ -1,4 +1,5 @@
-import { Sparkles, Mic, Brain, Search, FileText, Monitor, LogOut } from "lucide-react";
+import { Mic, Brain, Search, FileText, Monitor, LogOut } from "lucide-react";
+import AppLogo from "@/components/AppLogo";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -17,11 +18,11 @@ const Navbar = () => {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-foreground rounded-lg flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-primary-foreground" />
+        <Link to="/" className="flex items-center gap-2.5">
+          <div className="rounded-xl overflow-hidden shadow-[0_0_20px_-6px_hsl(var(--primary)_/_0.4)]">
+            <AppLogo size={32} />
           </div>
-          <span className="text-lg font-bold text-foreground">智记 AI</span>
+          <span className="text-lg font-bold text-foreground tracking-tight">智记 AI</span>
         </Link>
         <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
           <a href="/#voice" className="hover:text-foreground transition-colors flex items-center gap-1">

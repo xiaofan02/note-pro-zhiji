@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import AppLogo from "@/components/AppLogo";
 
 const SharedNote = () => {
   const { token } = useParams<{ token: string }>();
@@ -32,8 +33,8 @@ const SharedNote = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center animate-pulse">
-            <Sparkles className="w-5 h-5 text-primary-foreground" />
+          <div className="animate-pulse glow-primary-sm rounded-xl">
+            <AppLogo size={40} />
           </div>
           <p className="text-sm text-muted-foreground">加载中...</p>
         </div>
@@ -59,10 +60,10 @@ const SharedNote = () => {
       <header className="border-b border-border bg-card">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center gap-3">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
-              <Sparkles className="w-3.5 h-3.5 text-primary-foreground" />
+            <div className="rounded-lg glow-primary-sm overflow-hidden shrink-0">
+              <AppLogo size={28} />
             </div>
-            <span className="text-sm font-bold text-foreground">智记 AI</span>
+            <span className="text-sm font-bold text-foreground tracking-tight">智记 AI</span>
           </Link>
           <span className="text-xs text-muted-foreground">· 分享笔记</span>
         </div>

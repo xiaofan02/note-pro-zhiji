@@ -1,4 +1,5 @@
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import AppLogo from "@/components/AppLogo";
 import { useNavigate } from "react-router-dom";
 
 const CtaSection = () => {
@@ -6,8 +7,8 @@ const CtaSection = () => {
   return (
     <section className="bg-background">
       <div className="max-w-4xl mx-auto px-6 py-20 md:py-28 text-center space-y-8">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-foreground">
-          <Sparkles className="w-7 h-7 text-primary-foreground" />
+        <div className="inline-flex items-center justify-center rounded-2xl overflow-hidden shadow-[0_0_32px_-8px_hsl(var(--primary)_/_0.45)]">
+          <AppLogo size={64} />
         </div>
         <h2 className="text-3xl md:text-5xl font-black text-foreground leading-tight">
           准备好让 AI<br />帮你管理知识了吗？

@@ -10,7 +10,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { DEEP_LINK_SCHEME } from "@/lib/tauriAuth";
-import { Sparkles, CheckCircle, AlertCircle } from "lucide-react";
+import { CheckCircle, AlertCircle } from "lucide-react";
+import AppLogo from "@/components/AppLogo";
 
 const DesktopAuthCallback = () => {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
@@ -59,8 +60,8 @@ const DesktopAuthCallback = () => {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="max-w-sm w-full text-center space-y-6">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-foreground">
-          <Sparkles className="w-7 h-7 text-primary-foreground" />
+        <div className="inline-flex items-center justify-center rounded-2xl overflow-hidden shadow-[0_0_28px_-8px_hsl(var(--primary)_/_0.5)]">
+          <AppLogo size={64} />
         </div>
 
         {status === "loading" && (

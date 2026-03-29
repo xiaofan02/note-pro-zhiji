@@ -814,7 +814,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
     <div className="flex-1 flex flex-col h-full" style={{ "--code-font-size": `${codeFontSize}px` } as React.CSSProperties}>
       <input type="file" ref={fileInputRef} className="hidden" accept="image/png,image/jpeg,image/gif,image/webp" onChange={handleFileSelect} />
 
-      <div className="flex items-center justify-between px-6 py-3 border-b border-border gap-2 bg-background">
+      <div className="flex items-center justify-between px-6 py-3 border-b border-border/60 gap-2 bg-background/75 dark:bg-background/40 backdrop-blur-md supports-[backdrop-filter]:bg-background/55">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <span className="text-xs text-muted-foreground shrink-0">
             最后修改：{new Date(note.updated_at).toLocaleString("zh-CN")}
@@ -1103,7 +1103,7 @@ const NoteEditor = ({ note, onUpdate, tags, noteTags, onCreateTag, onAddTag, onR
 
       {/* Word count bar */}
       {editor && (
-        <div className="border-t border-border px-6 py-1.5 flex items-center justify-between bg-background shrink-0">
+        <div className="border-t border-border/60 px-6 py-1.5 flex items-center justify-between bg-background/75 dark:bg-background/35 backdrop-blur-md shrink-0">
           <span className="text-[11px] text-muted-foreground/60">
             {editor.storage.characterCount?.characters?.() ?? editor.getText().length} 字符 · {editor.getText().trim().split(/\s+/).filter(Boolean).length} 词
           </span>
