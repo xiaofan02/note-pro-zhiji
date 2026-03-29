@@ -171,8 +171,9 @@ mod win_sample {
 
     pub fn sample_foreground() -> Option<Sample> {
         unsafe {
-            let hwnd: HWND = GetForegroundWindow();
-            if hwnd.0.is_null() {
+            let hwnd = GetForegroundWindow();
+            // HWND.0 is *mut c_void; must not compare to integer 0 (E0308 on Windows CI).
+            if hwnd.0 == std::ptr::null_mut() {
                 return None;
             }
 
