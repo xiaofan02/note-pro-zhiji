@@ -172,7 +172,7 @@ mod win_sample {
     pub fn sample_foreground() -> Option<Sample> {
         unsafe {
             let hwnd: HWND = GetForegroundWindow();
-            if hwnd.is_invalid() {
+            if hwnd.0.is_null() {
                 return None;
             }
 
