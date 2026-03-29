@@ -102,7 +102,6 @@ pub fn save_config(app: &AppHandle, cfg: &ActivityConfig) -> Result<(), String> 
 
 #[cfg(windows)]
 mod win_sample {
-    use super::*;
     use std::ffi::OsString;
     use std::os::windows::ffi::OsStringExt;
     use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
@@ -173,7 +172,7 @@ mod win_sample {
     pub fn sample_foreground() -> Option<Sample> {
         unsafe {
             let hwnd: HWND = GetForegroundWindow();
-            if hwnd.0 == 0 {
+            if hwnd.is_invalid() {
                 return None;
             }
 
